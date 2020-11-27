@@ -52,13 +52,14 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	results := []Result{}
 
 	s.Each(func(i int, s *goquery.Selection) {
-		n := s.Nodes[0]
-		attrs := n.Attr
-		for _, attr := range attrs {
-			// WHY: Because I can't find a fucking easier way to get the
-			// fucking links (fuck CSS selectors and fuck HTML).
-			if attr.Key == "href" {
-				results = append(results, Result{URL: attr.Val})
+		for _, n := range s.Nodes {
+			attrs := n.Attr
+			for _, attr := range attrs {
+				// WHY: Because I can't find a fucking easier way to get the
+				// fucking links (fuck CSS selectors and fuck HTML).
+				if attr.Key == "href" {
+					results = append(results, Result{URL: attr.Val})
+				}
 			}
 		}
 	})
