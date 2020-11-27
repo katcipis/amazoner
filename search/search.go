@@ -21,9 +21,15 @@ type Result struct {
 // It is possible to have results and an error, which indicates
 // a partial result.
 func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
-	client := &http.Client{Timeout: 30 * time.Second}
+	const (
+		domain        = "www.amazon.com"
+		entrypointURL = "http://" + domain
+	)
 
-	req, err := http.NewRequest(http.MethodGet, "https://www.amazon.com/s", nil)
+	client := &http.Client{Timeout: 30 * time.Second}
+	searchQuery := fmt.Sprintf("%s/s", entrypointURL)
+
+	req, err := http.NewRequest(http.MethodGet, searchQuery, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +59,9 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	var errs []error
 	var results []Result
 
-	for _, url := range urls {
-		result, err := getResult(url)
+	for _, relurl := range urls {
+		absURL := entrypointURL + relurl
+		result, err := getResult(absURL)
 		if err != nil {
 			errs = append(errs, err)
 			continue
