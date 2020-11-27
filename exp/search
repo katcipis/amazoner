@@ -1,8 +1,8 @@
 #!/bin/bash
 
-curl 'https://www.amazon.com/s/ref=nb_sb_noss_1?url=search-alias%3Daps&field-keywords=nvidia+rtx+3070' \
+curl 'https://www.amazon.com/s?k=nvidia+rtx+3070&low-price=300&high-price=700' \
   -H 'authority: www.amazon.com' \
-  -H 'rtt: 50' \
+  -H 'rtt: 100' \
   -H 'downlink: 10' \
   -H 'ect: 4g' \
   -H 'upgrade-insecure-requests: 1' \
