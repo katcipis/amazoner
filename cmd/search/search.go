@@ -29,7 +29,20 @@ func main() {
 
 	fmt.Printf("search product %q min price %d max price %d\n\n", name, minPrice, maxPrice)
 
-	for _, res := range search.Do(name, minPrice, maxPrice) {
+	results, err := search.Do(name, minPrice, maxPrice)
+	fmt.Println("==== RESULTS START ====\n")
+	for _, res := range results {
 		fmt.Println(res)
 	}
+	fmt.Println("==== RESULTS END ====\n")
+
+	if err != nil {
+		logerr("==== ERRORS START ====\n")
+		logerr(err.Error())
+		logerr("==== ERRORS END ====\n")
+	}
+}
+
+func logerr(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
 }
