@@ -2,7 +2,6 @@ package buy
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -80,7 +79,7 @@ func Do(link string, maxPrice uint) (*Purchase, error) {
 		return nil, err
 	}
 
-	err = makePurchase(res.Body)
+	err = makePurchase(doc)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +130,7 @@ func checkPrice(price float64, maxPrice uint) bool {
 	return uint(price) <= maxPrice
 }
 
-func makePurchase(html io.Reader) error {
+func makePurchase(doc *goquery.Document) error {
 	return nil
 }
 
