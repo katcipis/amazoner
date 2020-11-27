@@ -92,10 +92,22 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 		}
 	})
 
-	urls = removeStartingWith(urls, "/s/", "/s?", "/gp/")
+	urls = removeStartingWith(urls, "/s/", "/s?", "/gp/", "javascript")
+	urls = removeFragments(urls)
 	urls = removeDuplicates(urls)
 
 	return urls, nil
+}
+
+func removeFragments(urls []string) []string {
+	for i, url := range urls {
+		sp := strings.Split(url, "#")
+		if len(sp) == 0 {
+			continue
+		}
+		urls[i] = sp[0]
+	}
+	return urls
 }
 
 func removeStartingWith(urls []string, prefixes ...string) []string {
