@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/fedesog/webdriver"
 )
 
 type Purchase struct {
@@ -21,7 +22,7 @@ type Purchase struct {
 }
 
 // Do performs a buy with the given parameters.
-func Do(link string, maxPrice uint) (*Purchase, error) {
+func Do(session *webdriver.Session, link string, maxPrice uint) (*Purchase, error) {
 
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -131,7 +132,14 @@ func checkPrice(price float64, maxPrice uint) bool {
 }
 
 func makePurchase(doc *goquery.Document) error {
-	return nil
+	html, err := doc.Html()
+	if err != nil {
+		return err
+	}
+	d1 := []byte(html)
+	err = ioutil.WriteFile("/tmp/dat1.html", d1, 0644)
+
+	return err
 }
 
 func standardizeSpaces(s string) string {
