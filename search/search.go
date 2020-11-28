@@ -24,7 +24,7 @@ type Result struct {
 func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	const (
 		domain        = "www.amazon.com"
-		entrypointURL = "http://" + domain
+		entrypointURL = "https://" + domain
 	)
 
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -62,7 +62,7 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 
 	for _, relurl := range urls {
 		absURL := entrypointURL + relurl
-		result, err := getResult(absURL)
+		result, err := getResult(c, absURL)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -73,10 +73,22 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	return results, toErr(errs)
 }
 
-func getResult(url string) (Result, error) {
+func getResult(c *http.Client, url string) (Result, error) {
+	respBody, err := getProduct(c, url)
+	if err != nil {
+		return Result{}, err
+	}
+	defer respBody.Close()
+
 	return Result{
 		URL: url,
 	}, nil
+}
+
+func getProduct(url string) (io.ReadCloser, error) {
+	// Funny enough to get product details amazon is
+	// more pedantic than with searching, so we need
+	// a bunch of headers.
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {
