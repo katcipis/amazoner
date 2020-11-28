@@ -14,7 +14,13 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+type Product struct {
+	Name  string
+	Price float64 // Yeah representing money as float is not an good idea in general
+}
+
 type Result struct {
+	Product
 	URL string
 }
 
@@ -74,14 +80,19 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 }
 
 func getResult(c *http.Client, url string) (Result, error) {
-	respBody, err := getProduct(c, url)
+	productPage, err := getProduct(c, url)
 	if err != nil {
 		return Result{}, err
 	}
-	defer respBody.Close()
+	defer productPage.Close()
 
+	prod, err := parseProduct(productPage)
+	if err != nil {
+		return Result{}, err
+	}
 	return Result{
-		URL: url,
+		URL:     url,
+		Product: prod,
 	}, nil
 }
 
@@ -112,6 +123,14 @@ func addUserAgent(req *http.Request) {
 	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
 }
 
+func parseProduct(html io.Reader) (Product, error) {
+	_, err := goquery.NewDocumentFromReader(html)
+	if err != nil {
+		return Product{}, err
+	}
+	return Product{}, nil
+}
+
 func parseResultsURLs(html io.Reader) ([]string, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
@@ -136,6 +155,10 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 			}
 		}
 	})
+
+	if len(urls) == 0 {
+		return nil, errors.New("unable to find any URLs on search result page")
+	}
 
 	urls = removeStartingWith(urls, "s", "gp")
 	urls = removeReferences(urls)
