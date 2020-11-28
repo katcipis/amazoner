@@ -5,13 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fedesog/webdriver"
 	"github.com/katcipis/amazoner/buy"
-)
-
-const (
-	domain        = "www.amazon.com"
-	entrypointURL = "https://" + domain
 )
 
 func main() {
@@ -39,25 +33,9 @@ func main() {
 
 	fmt.Println("==== BUY START ====\n")
 
-	// Start Chromedriver
-	chromeDriver := webdriver.NewChromeDriver("chromedriver")
-	err := chromeDriver.Start()
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	fmt.Println("Logging in...")
-	session, err := buy.Login(chromeDriver, entrypointURL, email, password)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	purchase, err := buy.Do(session, link, maxPrice)
+	purchase, err := buy.Do(link, maxPrice, email, password)
 	fmt.Println(purchase)
 	fmt.Println("==== BUY END ====\n")
-
-	session.Delete()
-	chromeDriver.Stop()
 
 	if err != nil {
 		logerr("==== ERRORS START ====\n")
