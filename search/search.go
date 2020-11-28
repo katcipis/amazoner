@@ -69,6 +69,8 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	var errs []error
 	var results []Result
 
+	const throttleTime = time.Second
+
 	for _, relurl := range urls {
 		absURL := entrypointURL + relurl
 		result, err := getResult(client, absURL)
@@ -77,6 +79,8 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 			continue
 		}
 		results = append(results, result)
+		// Avoid amazon errors by hammering the website
+		time.Sleep(throttleTime)
 	}
 
 	return results, toErr(errs)
@@ -91,7 +95,7 @@ func getResult(c *http.Client, url string) (Result, error) {
 
 	prod, err := parseProduct(productPage)
 	if err != nil {
-		return Result{}, err
+		return Result{}, fmt.Errorf("url %q parse error:%v", url, err)
 	}
 	return Result{
 		URL:     url,
@@ -127,12 +131,49 @@ func addUserAgent(req *http.Request) {
 }
 
 func parseProduct(html io.Reader) (Product, error) {
-	_, err := goquery.NewDocumentFromReader(html)
+	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
 
 		return Product{}, err
 	}
-	return Product{}, nil
+
+	name := strings.TrimSpace(doc.Find("#productTitle").Text())
+	if name == "" {
+		return Product{}, errors.New("cant parse product name")
+	}
+
+	price, ok := parseProductPrice(doc)
+	if !ok {
+		return Product{}, errors.New("cant parse product price")
+	}
+
+	fmt.Println(price)
+
+	return Product{
+		Name: name,
+	}, nil
+}
+
+func parseProductPrice(doc *goquery.Document) (string, bool) {
+	// TODO: Actually return float
+	price := strings.TrimSpace(doc.Find("#priceblock_ourprice").Text())
+	if price != "" {
+		return price, true
+	}
+
+	price = strings.TrimSpace(doc.Find("#style_name_0_price").Text())
+	if price != "" {
+		return price, true
+	}
+
+	price = strings.TrimSpace(doc.Find("#olp-upd-new > span > a > span.a-size-base.a-color-price").Text())
+	if price != "" {
+		return price, true
+	}
+
+	// Handling more price parsing options will give us more product options
+
+	return "", false
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {

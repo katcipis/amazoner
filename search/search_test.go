@@ -9,7 +9,9 @@ import (
 
 func TestSearch(t *testing.T) {
 	// The best we can do is some sort of property conservation
-	// test, so we catch bizarre regressions.
+	// test, so we catch bizarre regressions like returning no results
+	// or results with empty name, etc (although we dont check specific
+	// products or relevance).
 
 	type Test struct {
 		search     string
@@ -23,7 +25,7 @@ func TestSearch(t *testing.T) {
 			search:     "nvidia rtx 3070",
 			minPrice:   500,
 			maxPrice:   1500,
-			minResults: 10,
+			minResults: 8,
 		},
 	}
 
