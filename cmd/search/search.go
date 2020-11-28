@@ -30,7 +30,7 @@ func main() {
 	fmt.Printf("search product %q min price %d max price %d\n\n", name, minPrice, maxPrice)
 
 	results, err := search.Do(name, minPrice, maxPrice)
-	fmt.Println("==== RESULTS START ====\n")
+	fmt.Println("==== RESULTS START ====")
 	for _, res := range results {
 		fmt.Println(res)
 	}

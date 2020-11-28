@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -93,42 +94,39 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 			attrs := n.Attr
 			for _, attr := range attrs {
 				if attr.Key == "href" {
-					urls = append(urls, attr.Val)
+					parsedURL, err := url.Parse(attr.Val)
+					if err != nil {
+						continue
+					}
+					urls = append(urls, parsedURL.Path)
 				}
 			}
 		}
 	})
 
-	urls = removeStartingWith(urls, "/s/", "/s?", "/gp/", "javascript")
-	urls = removeFragments(urls)
+	urls = removeStartingWith(urls, "s", "gp")
 	urls = removeDuplicates(urls)
 
 	return urls, nil
 }
 
-func removeFragments(urls []string) []string {
-	for i, url := range urls {
-		sp := strings.Split(url, "#")
-		if len(sp) == 0 {
-			continue
-		}
-		urls[i] = sp[0]
-	}
-	return urls
-}
-
-func removeStartingWith(urls []string, prefixes ...string) []string {
+func removeStartingWith(urls []string, resourceNames ...string) []string {
 	res := []string{}
 
 	for _, url := range urls {
-		hasPrefix := false
-		for _, prefix := range prefixes {
-			if strings.HasPrefix(url, prefix) {
-				hasPrefix = true
+		splitedURL := strings.Split(url, "/")
+		if len(splitedURL) <= 1 {
+			continue
+		}
+		firstResource := splitedURL[1]
+		starts := false
+		for _, resName := range resourceNames {
+			if resName == firstResource {
+				starts = true
 				break
 			}
 		}
-		if !hasPrefix {
+		if !starts {
 			res = append(res, url)
 		}
 	}
