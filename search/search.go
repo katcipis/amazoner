@@ -105,9 +105,33 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 	})
 
 	urls = removeStartingWith(urls, "s", "gp")
+	urls = removeReferences(urls)
 	urls = removeDuplicates(urls)
 
 	return urls, nil
+}
+
+func removeReferences(urls []string) []string {
+	newURLs := []string{}
+
+	for _, url := range urls {
+		splitedURL := strings.Split(url, "/")
+		if len(splitedURL) == 0 {
+			continue
+		}
+
+		newURL := url
+		lastIndex := len(splitedURL) - 1
+		lastResource := splitedURL[lastIndex]
+
+		if strings.HasPrefix(lastResource, "ref=") {
+			newURL = strings.Join(splitedURL[:lastIndex], "/")
+		}
+
+		newURLs = append(newURLs, newURL)
+	}
+
+	return newURLs
 }
 
 func removeStartingWith(urls []string, resourceNames ...string) []string {
