@@ -37,9 +37,9 @@ func main() {
 	fmt.Println("==== RESULTS END ====")
 
 	if err != nil {
-		logerr("==== ERRORS START ====\n")
+		logerr("==== ERRORS START ====")
 		logerr(err.Error())
-		logerr("==== ERRORS END ====\n")
+		logerr("==== ERRORS END ====")
 	}
 }
 
