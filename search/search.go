@@ -137,8 +137,6 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 		}
 	})
 
-	fmt.Println(urls)
-
 	urls = removeStartingWith(urls, "s", "gp")
 	urls = removeReferences(urls)
 	urls = removeDuplicates(urls)
