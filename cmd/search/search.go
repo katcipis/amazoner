@@ -34,7 +34,7 @@ func main() {
 	for _, res := range results {
 		fmt.Println(res)
 	}
-	fmt.Println("==== RESULTS END ====\n")
+	fmt.Println("==== RESULTS END ====")
 
 	if err != nil {
 		logerr("==== ERRORS START ====\n")
