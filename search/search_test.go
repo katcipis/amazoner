@@ -37,12 +37,12 @@ func TestSearch(t *testing.T) {
 		)
 		t.Run(testname, func(t *testing.T) {
 			res, err := search.Do(test.search, test.minPrice, test.maxPrice)
-			if err != nil {
-				t.Error(err)
-			}
 			if len(res) < int(test.minResults) {
 				t.Errorf("got %d results; want %d", len(res), test.minResults)
-				t.Errorf("results: %v", res)
+				t.Errorf("results:%v", res)
+				if err != nil {
+					t.Errorf("errors:%v", err)
+				}
 			}
 		})
 	}
