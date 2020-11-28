@@ -40,6 +40,9 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	addUserAgent(req)
+
 	q := req.URL.Query()
 	q.Add("k", name)
 	q.Add("low-price", itoa(minPrice))
@@ -126,6 +129,7 @@ func addUserAgent(req *http.Request) {
 func parseProduct(html io.Reader) (Product, error) {
 	_, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
+
 		return Product{}, err
 	}
 	return Product{}, nil
