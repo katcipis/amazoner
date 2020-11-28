@@ -218,7 +218,7 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 		return nil, errors.New("unable to find any URLs on search result page")
 	}
 
-	urls = removeStartingWith(urls, "s", "gp")
+	urls = removeStartingWith(urls, "s", "x", "gp")
 	urls = removeReferences(urls)
 	urls = removeDuplicates(urls)
 
