@@ -154,6 +154,11 @@ func parseProduct(html io.Reader) (Product, error) {
 }
 
 func parseProductPrice(doc *goquery.Document) (float64, bool) {
+
+	if price, ok := parseMoney(doc.Find("#price_inside_buybox").Text()); ok {
+		return price, true
+	}
+
 	if price, ok := parseMoney(doc.Find("#priceblock_ourprice").Text()); ok {
 		return price, true
 	}
