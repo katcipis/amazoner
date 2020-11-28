@@ -62,7 +62,7 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 
 	for _, relurl := range urls {
 		absURL := entrypointURL + relurl
-		result, err := getResult(c, absURL)
+		result, err := getResult(client, absURL)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -85,10 +85,31 @@ func getResult(c *http.Client, url string) (Result, error) {
 	}, nil
 }
 
-func getProduct(url string) (io.ReadCloser, error) {
-	// Funny enough to get product details amazon is
-	// more pedantic than with searching, so we need
-	// a bunch of headers.
+func getProduct(c *http.Client, url string) (io.ReadCloser, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	addUserAgent(req)
+	res, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(res.Body)
+		res.Body.Close()
+		return nil, fmt.Errorf(
+			"url %q unexpected status %d; resp body:\n%s",
+			url,
+			res.StatusCode,
+			string(body),
+		)
+	}
+	return res.Body, nil
+}
+
+func addUserAgent(req *http.Request) {
+	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {
@@ -115,6 +136,8 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 			}
 		}
 	})
+
+	fmt.Println(urls)
 
 	urls = removeStartingWith(urls, "s", "gp")
 	urls = removeReferences(urls)
