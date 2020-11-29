@@ -26,7 +26,7 @@ type Purchase struct {
 const throttleTime = time.Second
 
 // Do performs a buy with the given parameters.
-func Do(link string, maxPrice uint, email, password string, dryRun bool) (*Purchase, error) {
+func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun bool) (*Purchase, error) {
 
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -84,7 +84,7 @@ func Do(link string, maxPrice uint, email, password string, dryRun bool) (*Purch
 		fmt.Fprintln(os.Stderr, "could not parse delivery due to empty string")
 	}
 
-	err = makePurchase(link, email, password, availability)
+	err = makePurchase(link, email, password, userDataDir, availability)
 	if err != nil {
 		return nil, err
 	}
@@ -114,21 +114,23 @@ func checkPrice(price float64, maxPrice uint) bool {
 	return uint(price) <= maxPrice
 }
 
-func makePurchase(link, email, password, availability string) error {
+func makePurchase(link, email, password, userDataDir, availability string) error {
 	// Start Chromedriver
-	chromeDriver, session, err := chromedriver.NewSession(link)
+	chromeDriver, session, err := chromedriver.NewSession(link, userDataDir)
 	if err != nil {
 		return err
 	}
 
 	time.Sleep(throttleTime)
 
-	err = Login(session, email, password)
-	if err != nil {
-		return err
-	}
+	if userDataDir == "" {
+		err = Login(session, email, password)
+		if err != nil {
+			return err
+		}
 
-	time.Sleep(throttleTime)
+		time.Sleep(throttleTime)
+	}
 
 	switch availability {
 	case "Available from these sellers.":
