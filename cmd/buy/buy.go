@@ -31,16 +31,16 @@ func main() {
 
 	fmt.Printf("buy product from link %q max price %d\n\n", link, maxPrice)
 
-	fmt.Println("==== BUY START ====\n")
+	fmt.Println("==== BUY START ====")
 
 	purchase, err := buy.Do(link, maxPrice, email, password)
 	fmt.Println(purchase)
-	fmt.Println("==== BUY END ====\n")
+	fmt.Println("==== BUY END ====")
 
 	if err != nil {
-		logerr("==== ERRORS START ====\n")
+		logerr("==== ERRORS START ====")
 		logerr(err.Error())
-		logerr("==== ERRORS END ====\n")
+		logerr("==== ERRORS END ====")
 	}
 }
 
