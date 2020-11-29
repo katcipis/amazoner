@@ -14,17 +14,19 @@ func main() {
 		maxPrice uint
 		email    string
 		password string
+		dryRun   bool
 	)
 
 	flag.StringVar(&link, "link", "", "link of product to buy")
 	flag.UintVar(&maxPrice, "max", 1000, "max price of product")
 	flag.StringVar(&email, "email", "", "your Amazon user email")
 	flag.StringVar(&password, "password", "", "your Amazon user password")
+	flag.BoolVar(&dryRun, "dryrun", false, "if true it just opens page without buying")
 
 	flag.Parse()
 
-	if link == "" {
-		fmt.Println("link is an obligatory parameter")
+	if link == "" || email == "" || password == "" {
+		fmt.Println("link, email and password are obligatory parameters")
 		os.Exit(1)
 		return
 	}
@@ -33,7 +35,7 @@ func main() {
 
 	fmt.Println("==== BUY START ====")
 
-	purchase, err := buy.Do(link, maxPrice, email, password)
+	purchase, err := buy.Do(link, maxPrice, email, password, dryRun)
 	fmt.Println(purchase)
 	fmt.Println("==== BUY END ====")
 

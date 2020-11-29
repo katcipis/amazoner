@@ -1,6 +1,8 @@
 package buy
 
 import (
+	"time"
+
 	"github.com/fedesog/webdriver"
 )
 
@@ -15,6 +17,8 @@ func Login(session *webdriver.Session, email, password string) error {
 	if err != nil {
 		return err
 	}
+
+	time.Sleep(2 * time.Second)
 
 	emailInput, err := session.FindElement(webdriver.ID, "ap_email")
 	if err != nil {
@@ -35,6 +39,8 @@ func Login(session *webdriver.Session, email, password string) error {
 	if err != nil {
 		return err
 	}
+
+	time.Sleep(2 * time.Second)
 
 	passwordInput, err := session.FindElement(webdriver.ID, "ap_password")
 	if err != nil {

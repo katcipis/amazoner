@@ -1,17 +1,18 @@
 package buy
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
-	"strconv"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/fedesog/webdriver"
 	"github.com/katcipis/amazoner/chromedriver"
+	"github.com/katcipis/amazoner/parser"
 )
 
 type Purchase struct {
@@ -22,8 +23,10 @@ type Purchase struct {
 	Delivery string
 }
 
+const throttleTime = time.Second
+
 // Do performs a buy with the given parameters.
-func Do(link string, maxPrice uint, email, password string) (*Purchase, error) {
+func Do(link string, maxPrice uint, email, password string, dryRun bool) (*Purchase, error) {
 
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -49,9 +52,9 @@ func Do(link string, maxPrice uint, email, password string) (*Purchase, error) {
 		return nil, err
 	}
 
-	availability, err := parseAvailability(doc)
-	if err != nil {
-		return nil, err
+	availability, ok := parser.ParseById(doc, "availability")
+	if !ok {
+		return nil, errors.New("could not parse availability due to empty string")
 	}
 
 	if !checkAvailability(availability) {
@@ -62,9 +65,9 @@ func Do(link string, maxPrice uint, email, password string) (*Purchase, error) {
 		}, nil
 	}
 
-	price, err := parsePrice(doc)
-	if err != nil {
-		return nil, err
+	price, ok := parser.ParseProductPrice(doc)
+	if !ok {
+		return nil, errors.New("cant parse product price")
 	}
 
 	if !checkPrice(price, maxPrice) {
@@ -76,12 +79,12 @@ func Do(link string, maxPrice uint, email, password string) (*Purchase, error) {
 		}, nil
 	}
 
-	delivery, err := parseDelivery(doc)
-	if err != nil {
-		return nil, err
+	delivery, ok := parser.ParseById(doc, "deliveryMessageMirId")
+	if !ok {
+		fmt.Fprintln(os.Stderr, "could not parse delivery due to empty string")
 	}
 
-	err = makePurchase(link, email, password)
+	err = makePurchase(link, email, password, availability)
 	if err != nil {
 		return nil, err
 	}
@@ -95,13 +98,8 @@ func Do(link string, maxPrice uint, email, password string) (*Purchase, error) {
 	}, nil
 }
 
-func parseAvailability(doc *goquery.Document) (string, error) {
-	return parseById(doc, "availability")
-}
-
 func checkAvailability(availability string) bool {
 	outOfStockPhrases := []string{
-		"Available from these sellers.",
 		"unavailable",
 	}
 	for _, phrase := range outOfStockPhrases {
@@ -112,38 +110,98 @@ func checkAvailability(availability string) bool {
 	return true
 }
 
-func parseDelivery(doc *goquery.Document) (string, error) {
-	return parseById(doc, "deliveryMessageMirId")
-}
-
-func parsePrice(doc *goquery.Document) (float64, error) {
-
-	price, err := parseById(doc, "price_inside_buybox")
-	if err != nil {
-		return 0.0, err
-	}
-
-	re := regexp.MustCompile(`[0-9]+(\.[0-9]+)?`)
-	price = re.FindString(price)
-	return strconv.ParseFloat(price, 64)
-}
-
 func checkPrice(price float64, maxPrice uint) bool {
 	return uint(price) <= maxPrice
 }
 
-func makePurchase(link, email, password string) error {
+func makePurchase(link, email, password, availability string) error {
 	// Start Chromedriver
 	chromeDriver, session, err := chromedriver.NewSession(link)
 	if err != nil {
 		return err
 	}
 
+	time.Sleep(throttleTime)
+
 	err = Login(session, email, password)
 	if err != nil {
 		return err
 	}
 
+	time.Sleep(throttleTime)
+
+	switch availability {
+	case "Available from these sellers.":
+		err = buyFromSellers(session)
+	default:
+		err = buyNow(session)
+	}
+
+	time.Sleep(throttleTime)
+
+	session.Delete()
+	chromeDriver.Stop()
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func buyFromSellers(session *webdriver.Session) error {
+
+	buySellersBtn, err := session.FindElement(webdriver.ID, "buybox-see-all-buying-choices")
+	if err != nil {
+		return err
+	}
+
+	err = buySellersBtn.Click()
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(throttleTime)
+
+	offers, err := session.FindElements(webdriver.ID, "aod-offer")
+	if err != nil {
+		return err
+	}
+
+	if len(offers) == 0 {
+		offers, err = session.FindElements(webdriver.CSS_Selector, "#olpOfferList > div > div > div")
+		if err != nil {
+			return err
+		}
+	}
+
+	bestOffer := offers[0]
+
+	addToCartBtn, err := bestOffer.FindElement(webdriver.Name, "submit.addToCart")
+	if err != nil {
+		return err
+	}
+
+	err = addToCartBtn.Click()
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(throttleTime)
+	checkoutBtn, err := bestOffer.FindElement(webdriver.ID, "nav-cart-count")
+	if err != nil {
+		return err
+	}
+
+	err = checkoutBtn.Click()
+	if err != nil {
+		return err
+	}
+	time.Sleep(throttleTime)
+	return nil
+}
+
+func buyNow(session *webdriver.Session) error {
 	buyNowBtn, err := session.FindElement(webdriver.ID, "buy-now-button")
 	if err != nil {
 		return err
@@ -154,28 +212,5 @@ func makePurchase(link, email, password string) error {
 		return err
 	}
 
-	time.Sleep(60 * time.Second)
-
-	session.Delete()
-	chromeDriver.Stop()
-
 	return nil
-}
-
-func standardizeSpaces(s string) string {
-	return strings.Join(strings.Fields(s), " ")
-}
-
-func parseById(doc *goquery.Document, id string) (string, error) {
-	query := fmt.Sprintf("#%s", id)
-	s := doc.Find(query)
-	s.Find("script").Each(func(i int, el *goquery.Selection) {
-		el.Remove()
-	})
-
-	parsedValue := standardizeSpaces(s.Text())
-	if parsedValue == "" {
-		return "", fmt.Errorf("Got empty string when parsing id '%s'.", id)
-	}
-	return parsedValue, nil
 }
