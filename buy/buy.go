@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -62,7 +63,7 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 		return nil, fmt.Errorf("no stock available: %s", availability)
 	}
 
-	price, err := product.ParsePrice(doc)
+	price, err := product.ParsePrice(doc, link)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing the price of product with availability '%s'\n%v", availability, err)
 	}
@@ -78,7 +79,7 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 
 	err = makePurchase(link, email, password, userDataDir, availability, dryRun)
 	if err != nil {
-		return nil, fmt.Errorf("error while making purchase of product with availability '%s', price '%v' and delivery '%s'.", availability, price, delivery)
+		return nil, fmt.Errorf("error while making purchase of product with availability '%s', price '%v' and delivery '%s'. err: %v", availability, price, delivery, err)
 	}
 
 	return &Purchase{
@@ -90,6 +91,7 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 
 func checkAvailability(availability string) bool {
 	outOfStockPhrases := []string{
+		"niet op voorraad",
 		"unavailable",
 	}
 	for _, phrase := range outOfStockPhrases {
@@ -121,7 +123,15 @@ func makePurchase(link, email, password, userDataDir, availability string, dryRu
 
 	switch availability {
 	case "Available from these sellers.":
-		err = buyFromSellers(browser.Session, dryRun)
+	case "Beschikbaar bij deze verkopers.":
+		linkUrl, err := url.Parse(link)
+		if err != nil {
+			return err
+		}
+
+		entrypointURL := "https://" + linkUrl.Hostname()
+
+		err = buyFromSellers(browser.Session, dryRun, entrypointURL)
 	default:
 		err = buyNow(browser.Session, dryRun)
 	}
@@ -135,7 +145,7 @@ func makePurchase(link, email, password, userDataDir, availability string, dryRu
 	return nil
 }
 
-func buyFromSellers(session *webdriver.Session, dryRun bool) error {
+func buyFromSellers(session *webdriver.Session, dryRun bool, entrypointURL string) error {
 
 	buySellersBtn, err := session.FindElement(webdriver.ID, "buybox-see-all-buying-choices")
 	if err != nil {
@@ -164,7 +174,7 @@ func buyFromSellers(session *webdriver.Session, dryRun bool) error {
 
 	time.Sleep(throttleTime)
 
-	session.Url("https://www.amazon.com/gp/cart/view.html")
+	session.Url(entrypointURL + "/gp/cart/view.html")
 
 	time.Sleep(throttleTime)
 

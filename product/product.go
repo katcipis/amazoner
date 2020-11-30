@@ -6,6 +6,8 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,32 +21,15 @@ type Product struct {
 	Price float64 // Yeah representing money as float is not an good idea in general
 }
 
-func Get(url string) (Product, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func Get(link string) (Product, error) {
+	responseBody, err := doRequest(link)
 	if err != nil {
 		return Product{}, err
 	}
-	addUserAgent(req)
-
-	c := &http.Client{Timeout: 30 * time.Second}
-	res, err := c.Do(req)
-	if err != nil {
-		return Product{}, err
-	}
-	if res.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		return Product{}, fmt.Errorf(
-			"url %q unexpected status %d; resp body:\n%s",
-			url,
-			res.StatusCode,
-			string(body),
-		)
-	}
-	return parseProduct(res.Body)
+	return parseProduct(responseBody, link)
 }
 
-func ParsePrice(doc *goquery.Document) (float64, error) {
+func ParsePrice(doc *goquery.Document, link string) (float64, error) {
 	// FIXME: probably just exposing Get or a Parse would be better
 	// instead of these very specific parsing functions.
 
@@ -79,15 +64,63 @@ func ParsePrice(doc *goquery.Document) (float64, error) {
 		return price, nil
 	}
 
+	if price, ok := parse("#olp-upd-new-used"); ok {
+		return price, nil
+	}
+
+	if price, ok := parse("#olp-upd-used"); ok {
+		return price, nil
+	}
+
+	// The easy scrapping parsing didn't work, time to bring the big guns
+	price, err := navigateAndParseBestBuyingOption(link)
+	if err == nil {
+		return price, nil
+	}
+
+	errs = append(errs, err)
 	// Handling more price parsing options will give us more product options
 	return 0, toErr(errs)
+}
+
+func navigateAndParseBestBuyingOption(link string) (float64, error) {
+	linkUrl, err := url.Parse(link)
+	if err != nil {
+		return 0, err
+	}
+
+	productId := filepath.Base(linkUrl.Path)
+
+	entrypointURL := fmt.Sprintf("https://%s/gp/offer-listing/%s", linkUrl.Hostname(), productId)
+
+	responseBody, err := doRequest(entrypointURL)
+	if err != nil {
+		return 0, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(responseBody)
+	if err != nil {
+		return 0, err
+	}
+
+	cssSelector := "#olpOfferList > div > div > div.a-row.a-spacing-mini.olpOffer > div.a-column.a-span2.olpPriceColumn > span"
+	moneyText := doc.Find(cssSelector).Text()
+	if moneyText == "" {
+		return 0, fmt.Errorf("selector %q selected nothing", cssSelector)
+	}
+	price, err := parseMoney(moneyText)
+	if err != nil {
+		return 0, err
+	}
+	return price, nil
+
 }
 
 func addUserAgent(req *http.Request) {
 	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
 }
 
-func parseProduct(html io.Reader) (Product, error) {
+func parseProduct(html io.Reader, link string) (Product, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
 
@@ -99,7 +132,7 @@ func parseProduct(html io.Reader) (Product, error) {
 		return Product{}, errors.New("cant parse product name")
 	}
 
-	price, err := ParsePrice(doc)
+	price, err := ParsePrice(doc, link)
 	if err != nil {
 		return Product{}, fmt.Errorf("cant parse product price:\n%v", err)
 	}
@@ -136,6 +169,30 @@ func parseMoney(s string) (float64, error) {
 	return v, nil
 }
 
+func doRequest(link string) (io.Reader, error) {
+	req, err := http.NewRequest(http.MethodGet, link, nil)
+	if err != nil {
+		return nil, err
+	}
+	addUserAgent(req)
+
+	c := &http.Client{Timeout: 30 * time.Second}
+	res, err := c.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(res.Body)
+		res.Body.Close()
+		return nil, fmt.Errorf(
+			"url %q unexpected status %d; resp body:\n%s",
+			link,
+			res.StatusCode,
+			string(body),
+		)
+	}
+	return res.Body, nil
+}
 func toErr(errs []error) error {
 	// FIXME: Copied from search
 	if len(errs) == 0 {
