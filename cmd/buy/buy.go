@@ -46,7 +46,7 @@ func main() {
 	fmt.Println("==== BUY START ====")
 
 	purchase, err := buy.Do(link, maxPrice, email, password, userDataDir, dryRun)
-	fmt.Println(purchase)
+	fmt.Printf("%+v\n", purchase)
 	fmt.Println("==== BUY END ====")
 
 	if err != nil {
