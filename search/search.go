@@ -17,7 +17,8 @@ import (
 
 type Result struct {
 	product.Product
-	URL string
+	URL   string
+	Valid bool
 }
 
 // Do performs a search with the given parameters.
