@@ -22,7 +22,6 @@ type Purchase struct {
 	Stock    string
 	Price    float64
 	Delivery string
-	DryRun   bool
 }
 
 const throttleTime = time.Second
@@ -99,7 +98,6 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 		Reason:   "All conditions met.",
 		Price:    price,
 		Delivery: delivery,
-		DryRun:   dryRun,
 	}, nil
 }
 
