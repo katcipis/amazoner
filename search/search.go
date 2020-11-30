@@ -92,11 +92,17 @@ func Filter(name string, results []Result) []Result {
 
 	for _, result := range results {
 		resultProduct := result.Product
+		resultValid := true
 		for _, term := range terms {
-			if strings.Contains(strings.ToLower(resultProduct.Name), strings.ToLower(term)) {
-				validResults = append(validResults, result)
+			if !strings.Contains(strings.ToLower(resultProduct.Name), strings.ToLower(term)) {
+				resultValid = false
+				break
 			}
 		}
+		if resultValid {
+			validResults = append(validResults, result)
+		}
+
 	}
 
 	return validResults
