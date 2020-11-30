@@ -17,8 +17,6 @@ import (
 )
 
 type Purchase struct {
-	Bought   bool
-	Reason   string
 	Stock    string
 	Price    float64
 	Delivery string
@@ -61,25 +59,16 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 	}
 
 	if !checkAvailability(availability) {
-		return &Purchase{
-			Bought: false,
-			Stock:  availability,
-			Reason: "No stock available.",
-		}, nil
+		return nil, fmt.Errorf("no stock available: %s", availability)
 	}
 
 	price, err := product.ParsePrice(doc)
 	if err != nil {
-		return nil, fmt.Errorf("cant parse product price:\n%v", err)
+		return nil, fmt.Errorf("error parsing the price of product with availability '%s'\n%v", availability, err)
 	}
 
 	if uint(price) > maxPrice {
-		return &Purchase{
-			Bought: false,
-			Stock:  availability,
-			Reason: "Price was higher than maximum.",
-			Price:  price,
-		}, nil
+		return nil, fmt.Errorf("could not buy product with availability '%s', price '%v' is higher than maximum '%d'.", availability, price, maxPrice)
 	}
 
 	delivery, ok := parser.ParseById(doc, "deliveryMessageMirId")
@@ -89,13 +78,11 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 
 	err = makePurchase(link, email, password, userDataDir, availability, dryRun)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while making purchase of product with availability '%s', price '%v' and delivery '%s'.", availability, price, delivery)
 	}
 
 	return &Purchase{
-		Bought:   true,
 		Stock:    availability,
-		Reason:   "All conditions met.",
 		Price:    price,
 		Delivery: delivery,
 	}, nil
