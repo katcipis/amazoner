@@ -7,8 +7,8 @@ import (
 	"github.com/katcipis/amazoner/search"
 )
 
-func Do(name string, results []search.Result) (string, error) {
-	cheaperPrice := 10000.0
+func Do(name string, maxPrice uint, results []search.Result) (string, error) {
+	cheaperPrice := float64(maxPrice)
 	cheaperResult := search.Result{}
 	terms := strings.Fields(name)
 
@@ -16,7 +16,7 @@ func Do(name string, results []search.Result) (string, error) {
 		product := result.Product
 		result.Valid = true
 		for _, term := range terms {
-			if !strings.Contains(product.Name, term) {
+			if !strings.Contains(strings.ToLower(product.Name), strings.ToLower(term)) {
 				result.Valid = false
 				break
 			}
