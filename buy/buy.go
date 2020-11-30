@@ -13,6 +13,7 @@ import (
 	"github.com/fedesog/webdriver"
 	"github.com/katcipis/amazoner/chromedriver"
 	"github.com/katcipis/amazoner/parser"
+	"github.com/katcipis/amazoner/product"
 )
 
 type Purchase struct {
@@ -31,6 +32,8 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 
 	client := &http.Client{Timeout: 30 * time.Second}
 
+	// FIXME: We have some get/product parsing logic here that could be
+	// placed on the product package.
 	req, err := http.NewRequest(http.MethodGet, link, nil)
 	if err != nil {
 		return nil, err
@@ -66,9 +69,9 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 		}, nil
 	}
 
-	price, ok := parser.ParseProductPrice(doc)
-	if !ok {
-		return nil, errors.New("cant parse product price")
+	price, err := product.ParsePrice(doc)
+	if err != nil {
+		return nil, fmt.Errorf("cant parse product price:\n%v", err)
 	}
 
 	if !checkPrice(price, maxPrice) {
