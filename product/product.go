@@ -103,13 +103,22 @@ func ParsePrice(doc *goquery.Document, url string) (float64, error) {
 }
 
 func navigateAndParseBestBuyingOption(url string) (float64, error) {
+	const timeout = 10 * time.Second
+
 	driver, err := chromedriver.New("")
 	if err != nil {
 		return 0, err
 	}
+	defer driver.Close()
+
 	if err := driver.Get(url); err != nil {
 		return 0, err
 	}
+
+	if err := driver.Click("buybox-see-all-buying-choices", timeout); err != nil {
+		return 0, fmt.Errorf("can't click on See All Buying Options button:%v", err)
+	}
+
 	return 0, errors.New("implement this")
 }
 

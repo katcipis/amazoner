@@ -1,6 +1,10 @@
 package chromedriver
 
 import (
+	"errors"
+	"strings"
+	"time"
+
 	"github.com/fedesog/webdriver"
 )
 
@@ -41,6 +45,14 @@ func (d *Driver) Get(url string) error {
 	return d.session.Url(url)
 }
 
+func (d *Driver) Click(elementID string, timeout time.Duration) error {
+	elem, err := d.findElementByID(elementID, timeout)
+	if err != nil {
+		return err
+	}
+	return elem.Click()
+}
+
 func (d *Driver) Close() {
 	d.session.Delete()
 	d.driver.Stop()
@@ -74,4 +86,39 @@ func NewSession(entrypointURL, userDataDir string) (*webdriver.ChromeDriver, *we
 		return nil, nil, err
 	}
 	return chromeDriver, session, nil
+}
+
+func (d *Driver) findElementByID(id string, timeout time.Duration) (webdriver.WebElement, error) {
+	// TODO: Not sure if the lib automatically polls when searching for an element
+	// Just to be sure we do polling here. This helps avoid spreading random sleeps
+	// everywhere waiting for elements to be rendered.
+	const pollingtime = 10 * time.Millisecond
+
+	deadline := time.Now().Add(timeout)
+	errs := []error{}
+
+	for time.Now().Before(deadline) {
+		elem, err := d.session.FindElement(webdriver.ID, "nav-link-accountList")
+		if err != nil {
+			errs = append(errs, err)
+			time.Sleep(pollingtime)
+			continue
+		}
+		return elem, nil
+	}
+
+	return webdriver.WebElement{}, toErr(errs)
+}
+
+func toErr(errs []error) error {
+	// FIXME: Copied from search and product
+	if len(errs) == 0 {
+		return nil
+	}
+
+	errmsgs := make([]string, len(errs))
+	for i, err := range errs {
+		errmsgs[i] = err.Error()
+	}
+	return errors.New(strings.Join(errmsgs, "\n"))
 }
