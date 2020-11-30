@@ -12,16 +12,11 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/katcipis/amazoner/parser"
+	"github.com/katcipis/amazoner/product"
 )
 
-type Product struct {
-	Name  string
-	Price float64 // Yeah representing money as float is not an good idea in general
-}
-
 type Result struct {
-	Product
+	product.Product
 	URL string
 }
 
@@ -74,84 +69,20 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 
 	for _, relurl := range urls {
 		absURL := entrypointURL + relurl
-		result, err := getResult(client, absURL)
+		product, err := product.Get(absURL)
 		if err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("url %q : %v", absURL, err))
 			continue
 		}
-		results = append(results, result)
+		results = append(results, Result{
+			URL:     absURL,
+			Product: product,
+		})
 		// Avoid amazon errors by hammering the website
 		time.Sleep(throttleTime)
 	}
 
 	return results, toErr(errs)
-}
-
-func getResult(c *http.Client, url string) (Result, error) {
-	productPage, err := getProduct(c, url)
-	if err != nil {
-		return Result{}, err
-	}
-	defer productPage.Close()
-
-	prod, err := parseProduct(productPage)
-	if err != nil {
-		return Result{}, fmt.Errorf("url %q parse error:%v", url, err)
-	}
-	return Result{
-		URL:     url,
-		Product: prod,
-	}, nil
-}
-
-func getProduct(c *http.Client, url string) (io.ReadCloser, error) {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	addUserAgent(req)
-	res, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if res.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		return nil, fmt.Errorf(
-			"url %q unexpected status %d; resp body:\n%s",
-			url,
-			res.StatusCode,
-			string(body),
-		)
-	}
-	return res.Body, nil
-}
-
-func addUserAgent(req *http.Request) {
-	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
-}
-
-func parseProduct(html io.Reader) (Product, error) {
-	doc, err := goquery.NewDocumentFromReader(html)
-	if err != nil {
-
-		return Product{}, err
-	}
-
-	name := strings.TrimSpace(doc.Find("#productTitle").Text())
-	if name == "" {
-		return Product{}, errors.New("cant parse product name")
-	}
-
-	price, ok := parser.ParseProductPrice(doc)
-	if !ok {
-		return Product{}, errors.New("cant parse product price")
-	}
-
-	return Product{
-		Name:  name,
-		Price: price,
-	}, nil
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {
@@ -269,4 +200,8 @@ func toErr(errs []error) error {
 		errmsgs[i] = err.Error()
 	}
 	return errors.New(strings.Join(errmsgs, "\n"))
+}
+
+func addUserAgent(req *http.Request) {
+	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
 }
