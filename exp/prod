@@ -1,5 +1,5 @@
 #!/bin/bash
 
-curl 'https://www.amazon.com/NVIDIA-GeForce-GDDR6-Express-Graphics/dp/B08MYCN952' \
+curl 'https://www.amazon.com/MSI-GeForce-RTX-2060-Architecture/dp/B07MQ36Z6L' \
   -H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36' \
   --compressed

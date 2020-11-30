@@ -7,8 +7,10 @@ import (
 )
 
 func TestProductGet(t *testing.T) {
+	// Usually isolated parsing tests would be more reliable and faster
+	// But right now corners are being cut :-)
 	urls := []string{
-		"https://www.amazon.com/MSI-GeForce-RTX-2060-Architecture/dp/B07MQ36Z6L",
+		"https://www.amazon.com/MSI-Twin-Frozr-Architecture-Overclocked-Graphics/dp/B07YXPVBWW",
 	}
 
 	for _, url := range urls {

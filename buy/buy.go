@@ -69,9 +69,9 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 		}, nil
 	}
 
-	price, ok := product.ParsePrice(doc)
-	if !ok {
-		return nil, errors.New("cant parse product price")
+	price, err := product.ParsePrice(doc)
+	if err != nil {
+		return nil, fmt.Errorf("cant parse product price:\n%v", err)
 	}
 
 	if !checkPrice(price, maxPrice) {

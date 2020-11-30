@@ -191,6 +191,7 @@ func itoa(v uint) string {
 }
 
 func toErr(errs []error) error {
+	// FIXME: Copied from product
 	if len(errs) == 0 {
 		return nil
 	}
