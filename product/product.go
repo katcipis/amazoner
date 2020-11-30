@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -116,16 +117,22 @@ func parseMoney(s string) (float64, error) {
 	if err == nil {
 		return v, nil
 	}
-	sp := strings.Split(s, "$")
-	if len(sp) <= 1 {
-		return 0, fmt.Errorf("can't find currency on %q", s)
+
+	re := regexp.MustCompile(`[,.0-9]+`)
+	s = re.FindString(s)
+	v, err = strconv.ParseFloat(s, 64)
+	if err == nil {
+		return v, nil
 	}
 
-	moneyText := strings.Replace(sp[1], ",", "", -1)
+	moneyText := strings.Replace(s, ",", "", -1)
+	moneyText = strings.Replace(moneyText, ".", "", -1)
 	v, err = strconv.ParseFloat(moneyText, 64)
 	if err != nil {
 		return 0, fmt.Errorf("can't parse %q : %v", s, err)
 	}
+	// After removing ',' and '.' need to divide by 100 to get cents back
+	v = v / 100
 	return v, nil
 }
 
