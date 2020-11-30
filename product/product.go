@@ -49,7 +49,12 @@ func ParsePrice(doc *goquery.Document) (float64, error) {
 
 	errs := []error{}
 	parse := func(cssSelector string) (float64, bool) {
-		price, err := parseMoney(doc.Find(cssSelector).Text())
+		moneyText := doc.Find(cssSelector).Text()
+		if moneyText == "" {
+			errs = append(errs, fmt.Errorf("selector %q selected nothing", cssSelector))
+			return 0, false
+		}
+		price, err := parseMoney(moneyText)
 		if err != nil {
 			errs = append(errs, err)
 			return 0, false
