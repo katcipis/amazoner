@@ -121,7 +121,8 @@ func parseMoney(s string) (float64, error) {
 		return 0, fmt.Errorf("can't find currency on %q", s)
 	}
 
-	v, err = strconv.ParseFloat(sp[1], 64)
+	moneyText := strings.Replace(sp[1], ",", "", -1)
+	v, err = strconv.ParseFloat(moneyText, 64)
 	if err != nil {
 		return 0, fmt.Errorf("can't parse %q : %v", s, err)
 	}
