@@ -40,10 +40,14 @@ func Get(url string) (Product, error) {
 			string(body),
 		)
 	}
-	return parseProduct(res.Body)
+	return parseProduct(url, res.Body)
 }
 
-func ParsePrice(doc *goquery.Document) (float64, error) {
+// ParsePrice will try to parse the product price from the given document.
+// If it can't because Javascript execution is required to get the price it
+// will use the given url to get the product page and navigate it using
+// a headless browser.
+func ParsePrice(doc *goquery.Document, url string) (float64, error) {
 	// FIXME: probably just exposing Get or a Parse would be better
 	// instead of these very specific parsing functions.
 
@@ -51,7 +55,7 @@ func ParsePrice(doc *goquery.Document) (float64, error) {
 	parse := func(cssSelector string) (float64, bool) {
 		moneyText := doc.Find(cssSelector).Text()
 		if moneyText == "" {
-			errs = append(errs, fmt.Errorf("selector %q selected nothing", cssSelector))
+			errs = append(errs, fmt.Errorf("html parsing:selector %q selected nothing", cssSelector))
 			return 0, false
 		}
 		price, err := parseMoney(moneyText)
@@ -78,15 +82,26 @@ func ParsePrice(doc *goquery.Document) (float64, error) {
 		return price, nil
 	}
 
+	// The easy scrapping parsing didn't work, time to bring the big guns
+	price, err := navigateAndParseBestBuyingOption(url)
+	if err == nil {
+		return price, nil
+	}
+
+	errs = append(errs, err)
 	// Handling more price parsing options will give us more product options
 	return 0, toErr(errs)
+}
+
+func navigateAndParseBestBuyingOption(url string) (float64, error) {
+	return 0, errors.New("implement this")
 }
 
 func addUserAgent(req *http.Request) {
 	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
 }
 
-func parseProduct(html io.Reader) (Product, error) {
+func parseProduct(url string, html io.Reader) (Product, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
 
@@ -98,7 +113,7 @@ func parseProduct(html io.Reader) (Product, error) {
 		return Product{}, errors.New("cant parse product name")
 	}
 
-	price, err := ParsePrice(doc)
+	price, err := ParsePrice(doc, url)
 	if err != nil {
 		return Product{}, fmt.Errorf("cant parse product price:\n%v", err)
 	}
