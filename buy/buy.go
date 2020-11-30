@@ -74,7 +74,7 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 		return nil, fmt.Errorf("cant parse product price:\n%v", err)
 	}
 
-	if !checkPrice(price, maxPrice) {
+	if uint(price) > maxPrice {
 		return &Purchase{
 			Bought: false,
 			Stock:  availability,
@@ -113,10 +113,6 @@ func checkAvailability(availability string) bool {
 		}
 	}
 	return true
-}
-
-func checkPrice(price float64, maxPrice uint) bool {
-	return uint(price) <= maxPrice
 }
 
 func makePurchase(link, email, password, userDataDir, availability string, dryRun bool) error {
