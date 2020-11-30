@@ -82,6 +82,10 @@ func ParsePrice(doc *goquery.Document, url string) (float64, error) {
 		return price, nil
 	}
 
+	if price, ok := parse("#olp-upd-new-used"); ok {
+		return price, nil
+	}
+
 	// The easy scrapping parsing didn't work, time to bring the big guns
 	price, err := navigateAndParseBestBuyingOption(url)
 	if err == nil {
