@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/katcipis/amazoner/chromedriver"
 )
 
 type Product struct {
@@ -102,6 +103,13 @@ func ParsePrice(doc *goquery.Document, url string) (float64, error) {
 }
 
 func navigateAndParseBestBuyingOption(url string) (float64, error) {
+	driver, err := chromedriver.New("")
+	if err != nil {
+		return 0, err
+	}
+	if err := driver.Get(url); err != nil {
+		return 0, err
+	}
 	return 0, errors.New("implement this")
 }
 
