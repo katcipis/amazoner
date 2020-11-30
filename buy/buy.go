@@ -21,6 +21,7 @@ type Purchase struct {
 	Stock    string
 	Price    float64
 	Delivery string
+	DryRun   bool
 }
 
 const throttleTime = time.Second
@@ -84,7 +85,7 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 		fmt.Fprintln(os.Stderr, "could not parse delivery due to empty string")
 	}
 
-	err = makePurchase(link, email, password, userDataDir, availability)
+	err = makePurchase(link, email, password, userDataDir, availability, dryRun)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +96,7 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 		Reason:   "All conditions met.",
 		Price:    price,
 		Delivery: delivery,
+		DryRun:   dryRun,
 	}, nil
 }
 
@@ -114,7 +116,7 @@ func checkPrice(price float64, maxPrice uint) bool {
 	return uint(price) <= maxPrice
 }
 
-func makePurchase(link, email, password, userDataDir, availability string) error {
+func makePurchase(link, email, password, userDataDir, availability string, dryRun bool) error {
 	// Start Chromedriver
 	chromeDriver, session, err := chromedriver.NewSession(link, userDataDir)
 	if err != nil {
@@ -134,9 +136,9 @@ func makePurchase(link, email, password, userDataDir, availability string) error
 
 	switch availability {
 	case "Available from these sellers.":
-		err = buyFromSellers(session)
+		err = buyFromSellers(session, dryRun)
 	default:
-		err = buyNow(session)
+		err = buyNow(session, dryRun)
 	}
 
 	time.Sleep(throttleTime)
@@ -151,68 +153,111 @@ func makePurchase(link, email, password, userDataDir, availability string) error
 	return nil
 }
 
-func buyFromSellers(session *webdriver.Session) error {
+func buyFromSellers(session *webdriver.Session, dryRun bool) error {
 
 	buySellersBtn, err := session.FindElement(webdriver.ID, "buybox-see-all-buying-choices")
 	if err != nil {
 		return err
 	}
 
-	err = buySellersBtn.Click()
-	if err != nil {
+	if err = buySellersBtn.Click(); err != nil {
 		return err
 	}
 
 	time.Sleep(throttleTime)
 
-	offers, err := session.FindElements(webdriver.ID, "aod-offer")
+	bestOffer, err := getBestOffer(session)
 	if err != nil {
 		return err
 	}
-
-	if len(offers) == 0 {
-		offers, err = session.FindElements(webdriver.CSS_Selector, "#olpOfferList > div > div > div")
-		if err != nil {
-			return err
-		}
-	}
-
-	bestOffer := offers[0]
 
 	addToCartBtn, err := bestOffer.FindElement(webdriver.Name, "submit.addToCart")
 	if err != nil {
 		return err
 	}
 
-	err = addToCartBtn.Click()
-	if err != nil {
+	if err = addToCartBtn.Click(); err != nil {
 		return err
 	}
 
 	time.Sleep(throttleTime)
-	checkoutBtn, err := bestOffer.FindElement(webdriver.ID, "nav-cart-count")
+
+	session.Url("https://www.amazon.com/gp/cart/view.html")
+
+	time.Sleep(throttleTime)
+
+	checkoutBtn, err := session.FindElement(webdriver.ID, "sc-buy-box-ptc-button")
 	if err != nil {
 		return err
 	}
 
-	err = checkoutBtn.Click()
+	if err = checkoutBtn.Click(); err != nil {
+		return err
+	}
+
+	time.Sleep(throttleTime)
+
+	placeOrderBtn, err := session.FindElement(webdriver.ID, "placeYourOrder")
 	if err != nil {
 		return err
 	}
-	time.Sleep(throttleTime)
+
+	if !dryRun {
+		if err = placeOrderBtn.Click(); err != nil {
+			return err
+		}
+		time.Sleep(throttleTime)
+	}
+
 	return nil
 }
 
-func buyNow(session *webdriver.Session) error {
+func buyNow(session *webdriver.Session, dryRun bool) error {
 	buyNowBtn, err := session.FindElement(webdriver.ID, "buy-now-button")
 	if err != nil {
 		return err
 	}
 
-	err = buyNowBtn.Click()
+	if err = buyNowBtn.Click(); err != nil {
+		return err
+	}
+
+	time.Sleep(5 * time.Second)
+
+	if err = session.FocusOnFrame("turbo-checkout-iframe"); err != nil {
+		return err
+	}
+	placeOrderBtn, err := session.FindElement(webdriver.ID, "turbo-checkout-place-order-button")
 	if err != nil {
 		return err
 	}
 
+	if !dryRun {
+		if err = placeOrderBtn.Click(); err != nil {
+			return err
+		}
+		time.Sleep(throttleTime)
+	}
+
 	return nil
+}
+
+func getBestOffer(session *webdriver.Session) (webdriver.WebElement, error) {
+	offers, err := session.FindElements(webdriver.ID, "aod-offer")
+	if err != nil {
+		return webdriver.WebElement{}, err
+	}
+
+	if len(offers) == 0 {
+		offers, err = session.FindElements(webdriver.CSS_Selector, "#olpOfferList > div > div > div")
+		if err != nil {
+			return webdriver.WebElement{}, err
+		}
+	}
+
+	if len(offers) == 0 {
+		return webdriver.WebElement{}, errors.New("could not parse best offer from sellers")
+	}
+
+	return offers[0], nil
 }
