@@ -12,6 +12,7 @@ func TestProductGet(t *testing.T) {
 	urls := []string{
 		"https://www.amazon.com/MSI-Twin-Frozr-Architecture-Overclocked-Graphics/dp/B07YXPVBWW",
 		"https://www.amazon.com/MSI-GeForce-RTX-3070-Architecture/dp/B08KWPDXJZ",
+		"https://www.amazon.com/MSI-RTX-2070-Super-Architecture/dp/B0856BVRFL",
 	}
 
 	for _, url := range urls {
