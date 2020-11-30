@@ -86,6 +86,33 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	return results, toErr(errs)
 }
 
+func Filter(name string, maxPrice uint, results []Result) (string, error) {
+	cheaperPrice := float64(maxPrice)
+	cheaperResult := Result{}
+	terms := strings.Fields(name)
+
+	for _, result := range results {
+		resultProduct := result.Product
+		resultValid := true
+		for _, term := range terms {
+			if !strings.Contains(strings.ToLower(resultProduct.Name), strings.ToLower(term)) {
+				resultValid = false
+				break
+			}
+		}
+		if resultValid && resultProduct.Price <= cheaperPrice {
+			cheaperPrice = resultProduct.Price
+			cheaperResult = result
+		}
+	}
+
+	if cheaperResult.URL != "" {
+		return cheaperResult.URL, nil
+	} else {
+		return "", errors.New("no valid results found")
+	}
+}
+
 func parseResultsURLs(html io.Reader) ([]string, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
