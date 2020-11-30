@@ -117,15 +117,16 @@ func checkAvailability(availability string) bool {
 
 func makePurchase(link, email, password, userDataDir, availability string, dryRun bool) error {
 	// Start Chromedriver
-	chromeDriver, session, err := chromedriver.NewSession(link, userDataDir)
+	browser, err := chromedriver.NewBrowser(link, userDataDir)
 	if err != nil {
 		return err
 	}
+	defer browser.Close()
 
 	time.Sleep(throttleTime)
 
 	if userDataDir == "" {
-		err = Login(session, email, password)
+		err = Login(browser.Session, email, password)
 		if err != nil {
 			return err
 		}
@@ -135,15 +136,12 @@ func makePurchase(link, email, password, userDataDir, availability string, dryRu
 
 	switch availability {
 	case "Available from these sellers.":
-		err = buyFromSellers(session, dryRun)
+		err = buyFromSellers(browser.Session, dryRun)
 	default:
-		err = buyNow(session, dryRun)
+		err = buyNow(browser.Session, dryRun)
 	}
 
 	time.Sleep(throttleTime)
-
-	session.Delete()
-	chromeDriver.Stop()
 
 	if err != nil {
 		return err
@@ -201,12 +199,14 @@ func buyFromSellers(session *webdriver.Session, dryRun bool) error {
 		return err
 	}
 
-	if !dryRun {
-		if err = placeOrderBtn.Click(); err != nil {
-			return err
-		}
-		time.Sleep(throttleTime)
+	if dryRun {
+		return nil
 	}
+
+	if err = placeOrderBtn.Click(); err != nil {
+		return err
+	}
+	time.Sleep(throttleTime)
 
 	return nil
 }
@@ -231,12 +231,14 @@ func buyNow(session *webdriver.Session, dryRun bool) error {
 		return err
 	}
 
-	if !dryRun {
-		if err = placeOrderBtn.Click(); err != nil {
-			return err
-		}
-		time.Sleep(throttleTime)
+	if dryRun {
+		return nil
 	}
+
+	if err = placeOrderBtn.Click(); err != nil {
+		return err
+	}
+	time.Sleep(throttleTime)
 
 	return nil
 }
