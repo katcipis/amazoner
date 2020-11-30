@@ -41,7 +41,7 @@ func Get(url string) (Product, error) {
 			string(body),
 		)
 	}
-	return parseProduct(url, res.Body)
+	return parseProduct(res.Body, url)
 }
 
 // ParsePrice will try to parse the product price from the given document.
@@ -126,7 +126,7 @@ func addUserAgent(req *http.Request) {
 	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
 }
 
-func parseProduct(url string, html io.Reader) (Product, error) {
+func parseProduct(html io.Reader, url string) (Product, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
 
