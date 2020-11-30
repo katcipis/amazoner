@@ -51,7 +51,7 @@ func TestSearch(t *testing.T) {
 	}
 }
 
-func TestFilter(t *testing.T) {
+func TestFilterAndSort(t *testing.T) {
 	searchResults := []search.Result{
 		search.Result{
 			Product: product.Product{
@@ -112,7 +112,6 @@ func TestFilter(t *testing.T) {
 
 	type Test struct {
 		search      string
-		maxPrice    uint
 		results     []search.Result
 		expectedUrl string
 	}
@@ -120,7 +119,6 @@ func TestFilter(t *testing.T) {
 	tests := []Test{
 		{
 			search:      "rtx 3070",
-			maxPrice:    1500,
 			results:     searchResults,
 			expectedUrl: "https://www.amazon.com/MSI-GeForce-256-Bit-Architecture-Graphics/dp/B08KWLMZV4",
 		},
@@ -128,19 +126,18 @@ func TestFilter(t *testing.T) {
 
 	for _, test := range tests {
 		testname := fmt.Sprintf(
-			"%sMax%d",
+			"%s",
 			test.search,
-			test.maxPrice,
 		)
 		t.Run(testname, func(t *testing.T) {
-			res, err := search.Filter(test.search, test.maxPrice, test.results)
+			filteredResults := search.Filter(test.search, test.results)
+			search.SortByPrice(filteredResults)
+			cheaperResult := filteredResults[0]
+			res := cheaperResult.URL
 
 			if res != test.expectedUrl {
 				t.Errorf("got url %s; want %s", res, test.expectedUrl)
 				t.Errorf("results:%v", test.results)
-				if err != nil {
-					t.Errorf("errors:%v", err)
-				}
 			}
 		})
 	}

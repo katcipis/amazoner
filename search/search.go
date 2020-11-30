@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -85,31 +86,26 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	return results, toErr(errs)
 }
 
-func Filter(name string, maxPrice uint, results []Result) (string, error) {
-	cheaperPrice := float64(maxPrice)
-	cheaperResult := Result{}
+func Filter(name string, results []Result) []Result {
+	validResults := []Result{}
 	terms := strings.Fields(name)
 
 	for _, result := range results {
 		resultProduct := result.Product
-		resultValid := true
 		for _, term := range terms {
-			if !strings.Contains(strings.ToLower(resultProduct.Name), strings.ToLower(term)) {
-				resultValid = false
-				break
+			if strings.Contains(strings.ToLower(resultProduct.Name), strings.ToLower(term)) {
+				validResults = append(validResults, result)
 			}
-		}
-		if resultValid && resultProduct.Price <= cheaperPrice {
-			cheaperPrice = resultProduct.Price
-			cheaperResult = result
 		}
 	}
 
-	if cheaperResult.URL != "" {
-		return cheaperResult.URL, nil
-	} else {
-		return "", errors.New("no valid results found")
-	}
+	return validResults
+}
+
+func SortByPrice(results []Result) {
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Product.Price < results[j].Product.Price
+	})
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {
