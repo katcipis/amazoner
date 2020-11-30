@@ -46,7 +46,7 @@ func (d *Driver) Get(url string) error {
 }
 
 func (d *Driver) Click(elementID string, timeout time.Duration) error {
-	elem, err := d.findElementByID(elementID, timeout)
+	elem, err := d.FindElementByID(elementID, timeout)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func NewSession(entrypointURL, userDataDir string) (*webdriver.ChromeDriver, *we
 	return chromeDriver, session, nil
 }
 
-func (d *Driver) findElementByID(id string, timeout time.Duration) (webdriver.WebElement, error) {
+func (d *Driver) FindElementByID(id string, timeout time.Duration) (webdriver.WebElement, error) {
 	// TODO: Not sure if the lib automatically polls when searching for an element
 	// Just to be sure we do polling here. This helps avoid spreading random sleeps
 	// everywhere waiting for elements to be rendered.

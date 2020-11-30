@@ -119,6 +119,11 @@ func navigateAndParseBestBuyingOption(url string) (float64, error) {
 		return 0, fmt.Errorf("can't click on See All Buying Options button:%v", err)
 	}
 
+	_, err = driver.FindElementByID("#aod-price-1", timeout)
+	if err != nil {
+		return 0, fmt.Errorf("can't find price element")
+	}
+
 	return 0, errors.New("implement this")
 }
 
