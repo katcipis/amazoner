@@ -62,6 +62,7 @@ func ParsePrice(doc *goquery.Document) (float64, bool) {
 	if price, ok := parseMoney(doc.Find("#olp-upd-new > span > a > span.a-size-base.a-color-price").Text()); ok {
 		return price, true
 	}
+	doc.Find("#aod-offer-price")
 
 	// Handling more price parsing options will give us more product options
 	return 0, false
