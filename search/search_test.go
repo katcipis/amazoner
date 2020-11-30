@@ -51,13 +51,8 @@ func TestSearch(t *testing.T) {
 	}
 }
 
-func TestFilterAndSort(t *testing.T) {
+func TestFilter(t *testing.T) {
 	searchResults := []search.Result{
-		search.Result{
-			Product: product.Product{
-				Name:  "MSI GeForce RTX 3070 Ventus 3X OC Gaming Video Card, 8GB GDDR6, PCIe 4.0, 8K, VR Ready, Ray Tracing, 1x HDMI 2.1, 3X DisplayPort 1.4, Triple Fans, HDCP, Mytrix HDMI 2.1 8K Cable",
-				Price: 939.99},
-			URL: "https://www.amazon.com/MSI-RTX-3070-HDMI-DisplayPort/dp/B08MVFMN35"},
 		search.Result{
 			Product: product.Product{
 				Name:  "MSI GeForce RTX 3070 Ventus 3X OC Gaming Video Card, 8GB GDDR6, PCIe 4.0, 8K, VR Ready, Ray Tracing, 1x HDMI 2.1, 3X DisplayPort 1.4, Triple Fans, HDCP, Mytrix HDMI 2.1 8K Cable",
@@ -111,6 +106,78 @@ func TestFilterAndSort(t *testing.T) {
 	}
 
 	type Test struct {
+		search         string
+		results        []search.Result
+		expectedLength int
+	}
+
+	tests := []Test{
+		{
+			search:         "rtx 3070",
+			results:        searchResults,
+			expectedLength: 7,
+		},
+	}
+
+	for _, test := range tests {
+		testname := fmt.Sprintf(
+			"%sLen%d",
+			test.search,
+			test.expectedLength,
+		)
+		t.Run(testname, func(t *testing.T) {
+			filteredResults := search.Filter(test.search, test.results)
+			res := len(filteredResults)
+
+			if res != test.expectedLength {
+				t.Errorf("got length %d; want %d", res, test.expectedLength)
+				prettyPrintResultList("results", test.results, t)
+				prettyPrintResultList("filteredResults", filteredResults, t)
+			}
+		})
+	}
+}
+
+func TestSortByPrice(t *testing.T) {
+	searchResults := []search.Result{
+		search.Result{
+			Product: product.Product{
+				Name:  "MSI GeForce RTX 3070 Ventus 3X OC Gaming Video Card, 8GB GDDR6, PCIe 4.0, 8K, VR Ready, Ray Tracing, 1x HDMI 2.1, 3X DisplayPort 1.4, Triple Fans, HDCP, Mytrix HDMI 2.1 8K Cable",
+				Price: 939.99},
+			URL: "https://www.amazon.com/MSI-RTX-3070-HDMI-DisplayPort/dp/B08MVFMN35"},
+		search.Result{
+			Product: product.Product{
+				Name:  "MSI GeForce RTX 3070 Ventus 3X OC Gaming Video Card, 8GB GDDR6, PCIe 4.0, 8K, VR Ready, Ray Tracing, 1x HDMI 2.1, 3X DisplayPort 1.4, Triple Fans, HDCP, Battlefield V",
+				Price: 939.99},
+			URL: "https://www.amazon.com/MSI-RTX-3070-DisplayPort-Battlefield/dp/B08MVHD9Z9"},
+		search.Result{
+			Product: product.Product{
+				Name:  "MSI Gaming GeForce RTX 3070 8GB GDRR6 256-Bit HDMI/DP Tri-Frozr 2 TORX Fan 4.0 Ampere Architecture RGB OC Graphics Card (RTX 3070 Gaming X Trio)",
+				Price: 959},
+			URL: "https://www.amazon.com/MSI-GeForce-RTX-3070-Architecture/dp/B08KWN2LZG"},
+		search.Result{
+			Product: product.Product{
+				Name:  "MSI Gaming GeForce RTX 3070 8GB GDRR6 256-Bit HDMI/DP TORX Fan 3.0 Ampere Architecture OC Graphics Card (RTX 3070 Ventus 3X OC)",
+				Price: 909.99},
+			URL: "https://www.amazon.com/MSI-GeForce-256-Bit-Architecture-Graphics/dp/B08KWLMZV4"},
+		search.Result{
+			Product: product.Product{
+				Name:  "PNY GeForce RTX 3070 8GB XLR8 Gaming Revel Epic-X RGB Triple Fan Graphics Card",
+				Price: 949.99},
+			URL: "https://www.amazon.com/PNY-GeForce-Gaming-Epic-X-Graphics/dp/B08HBJB7YD"},
+		search.Result{
+			Product: product.Product{
+				Name:  "MSI GeForce RTX 3070 Ventus 3X OC Gaming Video Card, 8GB GDDR6, PCIe 4.0, 8K, VR Ready, Ray Tracing, 1x HDMI 2.1, 3X DisplayPort 1.4, Triple Fans, HDCP, Mytrix HDMI 2.1 8K Cable, Battlefield V",
+				Price: 939.99},
+			URL: "https://www.amazon.com/MSI-RTX-3070-DisplayPort-Battlefield/dp/B08MVH3QJF"},
+		search.Result{
+			Product: product.Product{
+				Name:  "EVGA 08G-P5-3767-KR GeForce RTX 3070 FTW3 Ultra Gaming, 8GB GDDR6, iCX3 Technology, ARGB LED, Metal Backplate",
+				Price: 999.99},
+			URL: "https://www.amazon.com/EVGA-08G-P5-3767-KR-GeForce-Technology-Backplate/dp/B08L8L9TCZ"},
+	}
+
+	type Test struct {
 		search      string
 		results     []search.Result
 		expectedUrl string
@@ -130,15 +197,21 @@ func TestFilterAndSort(t *testing.T) {
 			test.search,
 		)
 		t.Run(testname, func(t *testing.T) {
-			filteredResults := search.Filter(test.search, test.results)
-			search.SortByPrice(filteredResults)
-			cheaperResult := filteredResults[0]
+			search.SortByPrice(test.results)
+			cheaperResult := test.results[0]
 			res := cheaperResult.URL
 
 			if res != test.expectedUrl {
 				t.Errorf("got url %s; want %s", res, test.expectedUrl)
-				t.Errorf("results:%v", test.results)
+				prettyPrintResultList("results", test.results, t)
 			}
 		})
+	}
+}
+
+func prettyPrintResultList(title string, results []search.Result, t *testing.T) {
+	t.Errorf("%s: \n", title)
+	for _, result := range results {
+		t.Errorf("%+v\n", result)
 	}
 }
