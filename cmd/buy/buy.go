@@ -35,7 +35,7 @@ func main() {
 
 	if userDataDir == "" {
 		if email == "" || password == "" {
-			fmt.Println("if you are not using user-data-dir, please provider email and password")
+			fmt.Println("if you are not using user-data-dir, please provide email and password")
 			os.Exit(1)
 			return
 		}
