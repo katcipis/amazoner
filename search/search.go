@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/katcipis/amazoner/parser"
 )
 
 type Product struct {
@@ -142,7 +143,7 @@ func parseProduct(html io.Reader) (Product, error) {
 		return Product{}, errors.New("cant parse product name")
 	}
 
-	price, ok := parseProductPrice(doc)
+	price, ok := parser.ParseProductPrice(doc)
 	if !ok {
 		return Product{}, errors.New("cant parse product price")
 	}
@@ -151,47 +152,6 @@ func parseProduct(html io.Reader) (Product, error) {
 		Name:  name,
 		Price: price,
 	}, nil
-}
-
-func parseProductPrice(doc *goquery.Document) (float64, bool) {
-
-	if price, ok := parseMoney(doc.Find("#price_inside_buybox").Text()); ok {
-		return price, true
-	}
-
-	if price, ok := parseMoney(doc.Find("#priceblock_ourprice").Text()); ok {
-		return price, true
-	}
-
-	if price, ok := parseMoney(doc.Find("#style_name_0_price").Text()); ok {
-		return price, true
-	}
-
-	if price, ok := parseMoney(doc.Find("#olp-upd-new > span > a > span.a-size-base.a-color-price").Text()); ok {
-		return price, true
-	}
-
-	// Handling more price parsing options will give us more product options
-	return 0, false
-}
-
-func parseMoney(s string) (float64, bool) {
-	// Yeah using float for money is not great...
-	s = strings.TrimSpace(s)
-	v, err := strconv.ParseFloat(s, 64)
-	if err == nil {
-		return v, true
-	}
-	sp := strings.Split(s, "$")
-	if len(sp) <= 1 {
-		return 0, false
-	}
-
-	v, err = strconv.ParseFloat(sp[1], 64)
-	if err != nil {
-		return 0, false
-	}
-	return v, true
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {
