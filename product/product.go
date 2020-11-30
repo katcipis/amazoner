@@ -103,6 +103,8 @@ func ParsePrice(doc *goquery.Document, url string) (float64, error) {
 }
 
 func navigateAndParseBestBuyingOption(url string) (float64, error) {
+	// FIXME: Instead of this try: https://www.amazon.com/gp/offer-listing/B07MQ36Z6L
+	// Maybe it works for any product ID
 	const timeout = 10 * time.Second
 
 	driver, err := chromedriver.New("")
