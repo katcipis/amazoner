@@ -3,6 +3,7 @@ package search_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/katcipis/amazoner/search"
 )
@@ -42,6 +43,17 @@ func TestSearch(t *testing.T) {
 		)
 		t.Run(testname, func(t *testing.T) {
 			res, err := search.Do(test.domain, test.search, test.minPrice, test.maxPrice)
+			if len(res) < int(test.minResults) {
+				t.Errorf("got %d results; want %d", len(res), test.minResults)
+				t.Errorf("results:%v", res)
+				if err != nil {
+					t.Errorf("errors:%v", err)
+				}
+			}
+		})
+		t.Run("Searcher/"+testname, func(t *testing.T) {
+			searcher := search.New(time.Minute)
+			res, err := searcher.Search(test.domain, test.search, test.minPrice, test.maxPrice)
 			if len(res) < int(test.minResults) {
 				t.Errorf("got %d results; want %d", len(res), test.minResults)
 				t.Errorf("results:%v", res)
