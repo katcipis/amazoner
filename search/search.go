@@ -90,7 +90,7 @@ func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 	}
 
 	if isCaptchaChallenge(html) {
-		html, err := getHtmlChromedriver(searchUrl.String())
+		html, err = getHtmlChromedriver(searchUrl.String())
 		if err != nil {
 			return nil, err
 		}
