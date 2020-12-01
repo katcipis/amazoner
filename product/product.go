@@ -18,6 +18,7 @@ import (
 )
 
 type Product struct {
+	URL   string
 	Name  string
 	Price float64 // Yeah representing money as float is not an good idea in general
 }
@@ -28,6 +29,26 @@ func Get(link string) (Product, error) {
 		return Product{}, err
 	}
 	return parseProduct(responseBody, link)
+}
+
+func GetProducts(urls []string) ([]Product, error) {
+	var errs []error
+	var prods []Product
+
+	const throttleTime = time.Second
+
+	for _, url := range urls {
+		product, err := Get(url)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("url %q : %v", url, err))
+			continue
+		}
+		prods = append(prods, product)
+		// Avoid amazon errors by hammering the website
+		time.Sleep(throttleTime)
+	}
+
+	return prods, toErr(errs)
 }
 
 func ParsePrice(doc *goquery.Document, link string) (float64, error) {
@@ -117,7 +138,7 @@ func navigateAndParseBestBuyingOption(link string) (float64, error) {
 
 }
 
-func parseProduct(html io.Reader, link string) (Product, error) {
+func parseProduct(html io.Reader, url string) (Product, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
 
@@ -129,12 +150,13 @@ func parseProduct(html io.Reader, link string) (Product, error) {
 		return Product{}, errors.New("cant parse product name")
 	}
 
-	price, err := ParsePrice(doc, link)
+	price, err := ParsePrice(doc, url)
 	if err != nil {
 		return Product{}, fmt.Errorf("cant parse product price:\n%v", err)
 	}
 
 	return Product{
+		URL:   url,
 		Name:  name,
 		Price: price,
 	}, nil

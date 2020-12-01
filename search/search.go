@@ -17,11 +17,6 @@ import (
 	"github.com/katcipis/amazoner/product"
 )
 
-type Result struct {
-	product.Product
-	URL string
-}
-
 type Error string
 
 const (
@@ -31,7 +26,7 @@ const (
 // Do performs a search with the given parameters.
 // It is possible to have results and an error, which indicates
 // a partial result.
-func Do(domain, name string, minPrice uint, maxPrice uint) ([]Result, error) {
+func Do(domain, name string, minPrice, maxPrice uint) ([]product.Product, error) {
 
 	entrypointURL := "https://" + domain
 
@@ -74,54 +69,40 @@ func Do(domain, name string, minPrice uint, maxPrice uint) ([]Result, error) {
 		return nil, err
 	}
 
-	var errs []error
-	var results []Result
-
-	const throttleTime = time.Second
-
-	for _, relurl := range urls {
+	for i, relurl := range urls {
 		absURL := entrypointURL + relurl
-		product, err := product.Get(absURL)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("url %q : %v", absURL, err))
-			continue
-		}
-		results = append(results, Result{
-			URL:     absURL,
-			Product: product,
-		})
-		// Avoid amazon errors by hammering the website
-		time.Sleep(throttleTime)
+		urls[i] = absURL
 	}
 
-	return results, toErr(errs)
+	return product.GetProducts(urls)
 }
 
-func Filter(name string, results []Result) []Result {
-	validResults := []Result{}
+func Filter(name string, prods []product.Product) []product.Product {
+	// FIXME: move to product package
+	validProds := []product.Product{}
 	terms := strings.Fields(name)
 
-	for _, result := range results {
-		resultProduct := result.Product
+	for _, prod := range prods {
 		resultValid := true
 		for _, term := range terms {
-			if !strings.Contains(strings.ToLower(resultProduct.Name), strings.ToLower(term)) {
+			if !strings.Contains(strings.ToLower(prod.Name), strings.ToLower(term)) {
 				resultValid = false
 				break
 			}
 		}
 		if resultValid {
-			validResults = append(validResults, result)
+			validProds = append(validProds, prod)
 		}
 
 	}
 
-	return validResults
+	return validProds
 }
 
-func SortByPrice(results []Result) {
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Product.Price < results[j].Product.Price
+func SortByPrice(prods []product.Product) {
+	// FIXME: move to product package
+	sort.Slice(prods, func(i, j int) bool {
+		return prods[i].Price < prods[j].Price
 	})
 }
 
