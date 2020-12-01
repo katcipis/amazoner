@@ -31,11 +31,12 @@ func Get(link string) (Product, error) {
 	return parseProduct(responseBody, link)
 }
 
+// GetProducts gets all products details from the given URLs.
+// It is possible to have results and an error, which indicates
+// a partial result.
 func GetProducts(urls []string) ([]Product, error) {
 	var errs []error
 	var prods []Product
-
-	const throttleTime = time.Second
 
 	for _, url := range urls {
 		product, err := Get(url)
@@ -44,8 +45,6 @@ func GetProducts(urls []string) ([]Product, error) {
 			continue
 		}
 		prods = append(prods, product)
-		// Avoid amazon errors by hammering the website
-		time.Sleep(throttleTime)
 	}
 
 	return prods, toErr(errs)
