@@ -23,10 +23,9 @@ const (
 	ErrCaptcha Error = "captcha challenge"
 )
 
-// Do performs a search with the given parameters.
-// It is possible to have results and an error, which indicates
-// a partial result.
-func Do(domain, name string, minPrice, maxPrice uint) ([]product.Product, error) {
+// Do performs a search with the given parameters and returns
+// a list of products URLs.
+func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 
 	entrypointURL := "https://" + domain
 
@@ -58,12 +57,6 @@ func Do(domain, name string, minPrice, maxPrice uint) ([]product.Product, error)
 		return nil, fmt.Errorf("main search query failed, unexpected status code %d, body:\n%s\n", res.StatusCode, resBody)
 	}
 
-	//body, debugFile, err := debug.Save("search-result.html", res.Body)
-	//if err != nil {
-	//return nil, fmt.Errorf("error trying to dump html response for debug:%v", err)
-	//}
-	//defer debugFile.Close()
-
 	urls, err := parseResultsURLs(res.Body)
 	if err != nil {
 		return nil, err
@@ -74,7 +67,7 @@ func Do(domain, name string, minPrice, maxPrice uint) ([]product.Product, error)
 		urls[i] = absURL
 	}
 
-	return product.GetProducts(urls)
+	return urls, nil
 }
 
 func Filter(name string, prods []product.Product) []product.Product {
