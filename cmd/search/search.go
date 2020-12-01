@@ -44,7 +44,7 @@ func main() {
 	products, err := product.GetProducts(urls)
 
 	if filter {
-		products = search.Filter(name, products)
+		products = product.Filter(name, products)
 	}
 
 	fmt.Println("==== RESULTS START ====")

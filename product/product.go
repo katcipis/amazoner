@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -102,6 +103,35 @@ func ParsePrice(doc *goquery.Document, link string) (float64, error) {
 	errs = append(errs, err)
 	// Handling more price parsing options will give us more product options
 	return 0, toErr(errs)
+}
+
+func Filter(name string, prods []Product) []Product {
+	// FIXME: move to product package
+	validProds := []Product{}
+	terms := strings.Fields(name)
+
+	for _, prod := range prods {
+		resultValid := true
+		for _, term := range terms {
+			if !strings.Contains(strings.ToLower(prod.Name), strings.ToLower(term)) {
+				resultValid = false
+				break
+			}
+		}
+		if resultValid {
+			validProds = append(validProds, prod)
+		}
+
+	}
+
+	return validProds
+}
+
+func SortByPrice(prods []Product) {
+	// FIXME: move to product package
+	sort.Slice(prods, func(i, j int) bool {
+		return prods[i].Price < prods[j].Price
+	})
 }
 
 func navigateAndParseBestBuyingOption(link string) (float64, error) {

@@ -7,14 +7,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/katcipis/amazoner/header"
-	"github.com/katcipis/amazoner/product"
 )
 
 type Error string
@@ -68,35 +66,6 @@ func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 	}
 
 	return urls, nil
-}
-
-func Filter(name string, prods []product.Product) []product.Product {
-	// FIXME: move to product package
-	validProds := []product.Product{}
-	terms := strings.Fields(name)
-
-	for _, prod := range prods {
-		resultValid := true
-		for _, term := range terms {
-			if !strings.Contains(strings.ToLower(prod.Name), strings.ToLower(term)) {
-				resultValid = false
-				break
-			}
-		}
-		if resultValid {
-			validProds = append(validProds, prod)
-		}
-
-	}
-
-	return validProds
-}
-
-func SortByPrice(prods []product.Product) {
-	// FIXME: move to product package
-	sort.Slice(prods, func(i, j int) bool {
-		return prods[i].Price < prods[j].Price
-	})
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {
