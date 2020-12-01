@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/katcipis/amazoner/debug"
 	"github.com/katcipis/amazoner/product"
 )
 
@@ -20,6 +21,12 @@ type Result struct {
 	product.Product
 	URL string
 }
+
+type Error string
+
+const (
+	ErrCaptcha Error = "captcha challenge"
+)
 
 // Do performs a search with the given parameters.
 // It is possible to have results and an error, which indicates
@@ -56,7 +63,13 @@ func Do(domain, name string, minPrice uint, maxPrice uint) ([]Result, error) {
 		return nil, fmt.Errorf("main search query failed, unexpected status code %d, body:\n%s\n", res.StatusCode, resBody)
 	}
 
-	urls, err := parseResultsURLs(res.Body)
+	body, debugFile, err := debug.Save("search-result.html", res.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error trying to dump html response for debug:%v", err)
+	}
+	defer debugFile.Close()
+
+	urls, err := parseResultsURLs(body)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +151,10 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 	})
 
 	if len(urls) == 0 {
+		if isCaptchaChallenge(doc) {
+			return nil, fmt.Errorf("unable to find product URLs : %w", ErrCaptcha)
+		}
+
 		return nil, errors.New("unable to find any URLs on search result page")
 	}
 
@@ -230,6 +247,14 @@ func toErr(errs []error) error {
 	return errors.New(strings.Join(errmsgs, "\n"))
 }
 
+func isCaptchaChallenge(doc *goquery.Document) bool {
+	return strings.Contains(doc.Text(), "captcha")
+}
+
 func addUserAgent(req *http.Request) {
 	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
+}
+
+func (e Error) Error() string {
+	return string(e)
 }
