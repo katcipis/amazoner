@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -17,12 +18,9 @@ import (
 )
 
 type Purchase struct {
-	Bought   bool
-	Reason   string
 	Stock    string
 	Price    float64
 	Delivery string
-	DryRun   bool
 }
 
 const throttleTime = time.Second
@@ -62,25 +60,16 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 	}
 
 	if !checkAvailability(availability) {
-		return &Purchase{
-			Bought: false,
-			Stock:  availability,
-			Reason: "No stock available.",
-		}, nil
+		return nil, fmt.Errorf("no stock available: %s", availability)
 	}
 
-	price, err := product.ParsePrice(doc)
+	price, err := product.ParsePrice(doc, link)
 	if err != nil {
-		return nil, fmt.Errorf("cant parse product price:\n%v", err)
+		return nil, fmt.Errorf("error parsing the price of product with availability '%s'\n%v", availability, err)
 	}
 
-	if !checkPrice(price, maxPrice) {
-		return &Purchase{
-			Bought: false,
-			Stock:  availability,
-			Reason: "Price was higher than maximum.",
-			Price:  price,
-		}, nil
+	if uint(price) > maxPrice {
+		return nil, fmt.Errorf("could not buy product with availability '%s', price '%v' is higher than maximum '%d'.", availability, price, maxPrice)
 	}
 
 	delivery, ok := parser.ParseById(doc, "deliveryMessageMirId")
@@ -90,21 +79,19 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 
 	err = makePurchase(link, email, password, userDataDir, availability, dryRun)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while making purchase of product with availability '%s', price '%v' and delivery '%s'. err: %v", availability, price, delivery, err)
 	}
 
 	return &Purchase{
-		Bought:   true,
 		Stock:    availability,
-		Reason:   "All conditions met.",
 		Price:    price,
 		Delivery: delivery,
-		DryRun:   dryRun,
 	}, nil
 }
 
 func checkAvailability(availability string) bool {
 	outOfStockPhrases := []string{
+		"niet op voorraad",
 		"unavailable",
 	}
 	for _, phrase := range outOfStockPhrases {
@@ -115,21 +102,18 @@ func checkAvailability(availability string) bool {
 	return true
 }
 
-func checkPrice(price float64, maxPrice uint) bool {
-	return uint(price) <= maxPrice
-}
-
 func makePurchase(link, email, password, userDataDir, availability string, dryRun bool) error {
 	// Start Chromedriver
-	chromeDriver, session, err := chromedriver.NewSession(link, userDataDir)
+	browser, err := chromedriver.NewBrowser(link, userDataDir)
 	if err != nil {
 		return err
 	}
+	defer browser.Close()
 
 	time.Sleep(throttleTime)
 
 	if userDataDir == "" {
-		err = Login(session, email, password)
+		err = Login(browser.Session, email, password)
 		if err != nil {
 			return err
 		}
@@ -139,15 +123,20 @@ func makePurchase(link, email, password, userDataDir, availability string, dryRu
 
 	switch availability {
 	case "Available from these sellers.":
-		err = buyFromSellers(session, dryRun)
+	case "Beschikbaar bij deze verkopers.":
+		linkUrl, err := url.Parse(link)
+		if err != nil {
+			return err
+		}
+
+		entrypointURL := "https://" + linkUrl.Hostname()
+
+		err = buyFromSellers(browser.Session, dryRun, entrypointURL)
 	default:
-		err = buyNow(session, dryRun)
+		err = buyNow(browser.Session, dryRun)
 	}
 
 	time.Sleep(throttleTime)
-
-	session.Delete()
-	chromeDriver.Stop()
 
 	if err != nil {
 		return err
@@ -156,7 +145,7 @@ func makePurchase(link, email, password, userDataDir, availability string, dryRu
 	return nil
 }
 
-func buyFromSellers(session *webdriver.Session, dryRun bool) error {
+func buyFromSellers(session *webdriver.Session, dryRun bool, entrypointURL string) error {
 
 	buySellersBtn, err := session.FindElement(webdriver.ID, "buybox-see-all-buying-choices")
 	if err != nil {
@@ -185,7 +174,7 @@ func buyFromSellers(session *webdriver.Session, dryRun bool) error {
 
 	time.Sleep(throttleTime)
 
-	session.Url("https://www.amazon.com/gp/cart/view.html")
+	session.Url(entrypointURL + "/gp/cart/view.html")
 
 	time.Sleep(throttleTime)
 
@@ -205,12 +194,14 @@ func buyFromSellers(session *webdriver.Session, dryRun bool) error {
 		return err
 	}
 
-	if !dryRun {
-		if err = placeOrderBtn.Click(); err != nil {
-			return err
-		}
-		time.Sleep(throttleTime)
+	if dryRun {
+		return nil
 	}
+
+	if err = placeOrderBtn.Click(); err != nil {
+		return err
+	}
+	time.Sleep(throttleTime)
 
 	return nil
 }
@@ -235,12 +226,14 @@ func buyNow(session *webdriver.Session, dryRun bool) error {
 		return err
 	}
 
-	if !dryRun {
-		if err = placeOrderBtn.Click(); err != nil {
-			return err
-		}
-		time.Sleep(throttleTime)
+	if dryRun {
+		return nil
 	}
+
+	if err = placeOrderBtn.Click(); err != nil {
+		return err
+	}
+	time.Sleep(throttleTime)
 
 	return nil
 }

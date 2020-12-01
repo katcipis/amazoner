@@ -4,11 +4,16 @@ import (
 	"github.com/fedesog/webdriver"
 )
 
-func NewSession(entrypointURL, userDataDir string) (*webdriver.ChromeDriver, *webdriver.Session, error) {
+type Browser struct {
+	ChromeDriver *webdriver.ChromeDriver
+	Session      *webdriver.Session
+}
+
+func NewBrowser(entrypointURL, userDataDir string) (*Browser, error) {
 	chromeDriver := webdriver.NewChromeDriver("chromedriver")
 	err := chromeDriver.Start()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	desired := webdriver.Capabilities{
@@ -24,11 +29,17 @@ func NewSession(entrypointURL, userDataDir string) (*webdriver.ChromeDriver, *we
 
 	session, err := chromeDriver.NewSession(desired, required)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	err = session.Url(entrypointURL)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return chromeDriver, session, nil
+
+	return &Browser{chromeDriver, session}, nil
+}
+
+func (b *Browser) Close() {
+	b.Session.Delete()
+	b.ChromeDriver.Stop()
 }

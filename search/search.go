@@ -24,11 +24,9 @@ type Result struct {
 // Do performs a search with the given parameters.
 // It is possible to have results and an error, which indicates
 // a partial result.
-func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
-	const (
-		domain        = "www.amazon.com"
-		entrypointURL = "https://" + domain
-	)
+func Do(domain, name string, minPrice uint, maxPrice uint) ([]Result, error) {
+
+	entrypointURL := "https://" + domain
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	searchQuery := fmt.Sprintf("%s/s", entrypointURL)

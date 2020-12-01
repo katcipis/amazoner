@@ -11,6 +11,8 @@ func TestProductGet(t *testing.T) {
 	// But right now corners are being cut :-)
 	urls := []string{
 		"https://www.amazon.com/MSI-Twin-Frozr-Architecture-Overclocked-Graphics/dp/B07YXPVBWW",
+		"https://www.amazon.com/MSI-RTX-2070-Super-Architecture/dp/B0856BVRFL",
+		"https://www.amazon.com/MSI-Twin-Frozr-Architecture-Overclocked-Graphics/dp/B07YXPVBWW",
 	}
 
 	for _, url := range urls {

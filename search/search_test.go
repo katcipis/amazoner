@@ -15,6 +15,7 @@ func TestSearch(t *testing.T) {
 	// products or relevance).
 
 	type Test struct {
+		domain     string
 		search     string
 		minPrice   uint
 		maxPrice   uint
@@ -23,6 +24,7 @@ func TestSearch(t *testing.T) {
 
 	tests := []Test{
 		{
+			domain:     "www.amazon.com",
 			search:     "nvidia rtx 3070",
 			minPrice:   500,
 			maxPrice:   1500,
@@ -32,14 +34,15 @@ func TestSearch(t *testing.T) {
 
 	for _, test := range tests {
 		testname := fmt.Sprintf(
-			"%sMin%dMax%dWant%d",
+			"%s%sMin%dMax%dWant%d",
+			test.domain,
 			test.search,
 			test.minPrice,
 			test.maxPrice,
 			test.minResults,
 		)
 		t.Run(testname, func(t *testing.T) {
-			res, err := search.Do(test.search, test.minPrice, test.maxPrice)
+			res, err := search.Do(test.domain, test.search, test.minPrice, test.maxPrice)
 			if len(res) < int(test.minResults) {
 				t.Errorf("got %d results; want %d", len(res), test.minResults)
 				t.Errorf("results:%v", res)
