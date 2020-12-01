@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/katcipis/amazoner/header"
 )
 
 type Product struct {
@@ -116,10 +117,6 @@ func navigateAndParseBestBuyingOption(link string) (float64, error) {
 
 }
 
-func addUserAgent(req *http.Request) {
-	req.Header.Add("user-agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36")
-}
-
 func parseProduct(html io.Reader, link string) (Product, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
@@ -174,9 +171,14 @@ func doRequest(link string) (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	addUserAgent(req)
+	header.Add(req)
 
 	c := &http.Client{Timeout: 30 * time.Second}
+
+	const throttleTime = time.Second
+
+	time.Sleep(throttleTime)
+
 	res, err := c.Do(req)
 	if err != nil {
 		return nil, err
