@@ -31,6 +31,13 @@ const (
 	ErrCaptcha Error = "captcha challenge"
 )
 
+func New(cachePeriod time.Duration) *Searcher {
+	return &Searcher{
+		CachePeriod: cachePeriod,
+		cache:       map[string]cacheEntry{},
+	}
+}
+
 // Do performs a search with the given parameters and returns
 // a list of products. It can produce partial results so you
 // should check for the products even if an error is returned.

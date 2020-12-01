@@ -27,7 +27,7 @@ func TestSearch(t *testing.T) {
 			search:     "nvidia rtx 3070",
 			minPrice:   500,
 			maxPrice:   1500,
-			minResults: 8,
+			minResults: 14,
 		},
 	}
 
