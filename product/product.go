@@ -106,7 +106,6 @@ func ParsePrice(doc *goquery.Document, link string) (float64, error) {
 }
 
 func Filter(name string, prods []Product) []Product {
-	// FIXME: move to product package
 	validProds := []Product{}
 	terms := strings.Fields(name)
 
