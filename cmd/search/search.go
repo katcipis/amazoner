@@ -32,7 +32,7 @@ func main() {
 	results, err := search.Do(name, minPrice, maxPrice)
 	fmt.Println("==== RESULTS START ====")
 	for _, res := range results {
-		fmt.Println(res)
+		fmt.Printf("%+v\n", res)
 	}
 	fmt.Println("==== RESULTS END ====")
 

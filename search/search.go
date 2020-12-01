@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -83,6 +84,34 @@ func Do(name string, minPrice uint, maxPrice uint) ([]Result, error) {
 	}
 
 	return results, toErr(errs)
+}
+
+func Filter(name string, results []Result) []Result {
+	validResults := []Result{}
+	terms := strings.Fields(name)
+
+	for _, result := range results {
+		resultProduct := result.Product
+		resultValid := true
+		for _, term := range terms {
+			if !strings.Contains(strings.ToLower(resultProduct.Name), strings.ToLower(term)) {
+				resultValid = false
+				break
+			}
+		}
+		if resultValid {
+			validResults = append(validResults, result)
+		}
+
+	}
+
+	return validResults
+}
+
+func SortByPrice(results []Result) {
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Product.Price < results[j].Product.Price
+	})
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {
