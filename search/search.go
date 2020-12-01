@@ -3,7 +3,6 @@ package search
 import (
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -12,6 +11,8 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/katcipis/amazoner/chromedriver"
+	// "github.com/katcipis/amazoner/debug"
 	"github.com/katcipis/amazoner/header"
 	"github.com/katcipis/amazoner/product"
 )
@@ -71,35 +72,39 @@ func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 
 	entrypointURL := "https://" + domain
 
-	client := &http.Client{Timeout: 30 * time.Second}
 	searchQuery := fmt.Sprintf("%s/s", entrypointURL)
-
-	req, err := http.NewRequest(http.MethodGet, searchQuery, nil)
+	searchUrl, err := url.Parse(searchQuery)
 	if err != nil {
 		return nil, err
 	}
 
-	header.Add(req)
-
-	q := req.URL.Query()
+	q := searchUrl.Query()
 	q.Add("k", name)
 	q.Add("low-price", itoa(minPrice))
 	q.Add("high-price", itoa(maxPrice))
-	req.URL.RawQuery = q.Encode()
+	searchUrl.RawQuery = q.Encode()
 
-	res, err := client.Do(req)
+	html, err := getHtml(searchUrl.String())
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		// Lazy ignoring the error here
-		resBody, _ := ioutil.ReadAll(res.Body)
-		return nil, fmt.Errorf("main search query failed, unexpected status code %d, body:\n%s\n", res.StatusCode, resBody)
+	if isCaptchaChallenge(html) {
+		html, err := getHtmlChromedriver(searchUrl.String())
+		if err != nil {
+			return nil, err
+		}
+
+		if isCaptchaChallenge(html) {
+			return nil, fmt.Errorf("unable to find product URLs : %w", ErrCaptcha)
+		}
 	}
 
-	urls, err := parseResultsURLs(res.Body)
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil, err
+	}
+	urls, err := parseResultsURLs(doc)
 	if err != nil {
 		return nil, err
 	}
@@ -117,11 +122,7 @@ type cacheEntry struct {
 	deadline time.Time
 }
 
-func parseResultsURLs(html io.Reader) ([]string, error) {
-	doc, err := goquery.NewDocumentFromReader(html)
-	if err != nil {
-		return nil, err
-	}
+func parseResultsURLs(doc *goquery.Document) ([]string, error) {
 
 	s := doc.Find(".s-main-slot.s-result-list.s-search-results.sg-row")
 	s = s.Find("a")
@@ -143,10 +144,6 @@ func parseResultsURLs(html io.Reader) ([]string, error) {
 	})
 
 	if len(urls) == 0 {
-		if isCaptchaChallenge(doc) {
-			return nil, fmt.Errorf("unable to find product URLs : %w", ErrCaptcha)
-		}
-
 		return nil, errors.New("unable to find any URLs on search result page")
 	}
 
@@ -239,8 +236,8 @@ func toErr(errs []error) error {
 	return errors.New(strings.Join(errmsgs, "\n"))
 }
 
-func isCaptchaChallenge(doc *goquery.Document) bool {
-	return strings.Contains(doc.Text(), "captcha")
+func isCaptchaChallenge(html string) bool {
+	return strings.Contains(html, "captcha")
 }
 
 func (e Error) Error() string {
@@ -262,4 +259,61 @@ func (s *Searcher) cleanCache() {
 			delete(s.cache, k)
 		}
 	}
+}
+
+func getHtml(entrypointURL string) (string, error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, entrypointURL, nil)
+	if err != nil {
+		return "", err
+	}
+
+	header.Add(req)
+
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	// body, debugFile, err := debug.Save("search-result-http.html", res.Body)
+	// if err != nil {
+	// 	return "", fmt.Errorf("error trying to dump html response for debug:%v", err)
+	// }
+	// defer debugFile.Close()
+
+	// resBody, err := ioutil.ReadAll(body)
+	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse response body: %v", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("main search query failed, unexpected status code %d, body:\n%s\n", res.StatusCode, resBody)
+	}
+
+	return string(resBody), nil
+}
+
+func getHtmlChromedriver(entrypointURL string) (string, error) {
+	browser, err := chromedriver.NewBrowser(entrypointURL, "")
+	if err != nil {
+		return "", err
+	}
+	defer browser.Close()
+
+	time.Sleep(2 * time.Second)
+
+	html, err := browser.Session.Source()
+	if err != nil {
+		return "", fmt.Errorf("failed to get html from chromedriver session: %v", err)
+	}
+
+	// debugFile, err := debug.SaveString("search-result-chrome.html", html)
+	// if err != nil {
+	// 	return "", fmt.Errorf("error trying to dump html response for debug:%v", err)
+	// }
+	// defer debugFile.Close()
+
+	return html, nil
 }
