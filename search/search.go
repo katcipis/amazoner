@@ -241,6 +241,12 @@ func (e Error) Error() string {
 }
 
 func (s *Searcher) addCache(prods []product.Product) {
+	for _, prod := range prods {
+		s.cache[prod.URL] = cacheEntry{
+			product:  prod,
+			deadline: time.Now().Add(s.CachePeriod),
+		}
+	}
 }
 
 func (s *Searcher) cleanCache() {
