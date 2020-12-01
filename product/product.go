@@ -177,6 +177,11 @@ func doRequest(link string) (io.Reader, error) {
 	addUserAgent(req)
 
 	c := &http.Client{Timeout: 30 * time.Second}
+
+	const throttleTime = 5 * time.Second
+
+	time.Sleep(throttleTime)
+
 	res, err := c.Do(req)
 	if err != nil {
 		return nil, err
