@@ -61,6 +61,17 @@ func TestSearch(t *testing.T) {
 					t.Errorf("errors:%v", err)
 				}
 			}
+
+			for i, prod := range res {
+
+				if prod.Name == "" {
+					t.Errorf("prod %d missing name on product", i)
+				}
+
+				if prod.Price <= 0 {
+					t.Errorf("prod %d missing price on product", i)
+				}
+			}
 		})
 	}
 }
