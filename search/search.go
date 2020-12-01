@@ -7,20 +7,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/katcipis/amazoner/header"
-	"github.com/katcipis/amazoner/product"
 )
-
-type Result struct {
-	product.Product
-	URL string
-}
 
 type Error string
 
@@ -28,10 +21,9 @@ const (
 	ErrCaptcha Error = "captcha challenge"
 )
 
-// Do performs a search with the given parameters.
-// It is possible to have results and an error, which indicates
-// a partial result.
-func Do(domain, name string, minPrice uint, maxPrice uint) ([]Result, error) {
+// Do performs a search with the given parameters and returns
+// a list of products URLs.
+func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 
 	entrypointURL := "https://" + domain
 
@@ -63,66 +55,17 @@ func Do(domain, name string, minPrice uint, maxPrice uint) ([]Result, error) {
 		return nil, fmt.Errorf("main search query failed, unexpected status code %d, body:\n%s\n", res.StatusCode, resBody)
 	}
 
-	//body, debugFile, err := debug.Save("search-result.html", res.Body)
-	//if err != nil {
-	//return nil, fmt.Errorf("error trying to dump html response for debug:%v", err)
-	//}
-	//defer debugFile.Close()
-
 	urls, err := parseResultsURLs(res.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	var errs []error
-	var results []Result
-
-	const throttleTime = time.Second
-
-	for _, relurl := range urls {
+	for i, relurl := range urls {
 		absURL := entrypointURL + relurl
-		product, err := product.Get(absURL)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("url %q : %v", absURL, err))
-			continue
-		}
-		results = append(results, Result{
-			URL:     absURL,
-			Product: product,
-		})
-		// Avoid amazon errors by hammering the website
-		time.Sleep(throttleTime)
+		urls[i] = absURL
 	}
 
-	return results, toErr(errs)
-}
-
-func Filter(name string, results []Result) []Result {
-	validResults := []Result{}
-	terms := strings.Fields(name)
-
-	for _, result := range results {
-		resultProduct := result.Product
-		resultValid := true
-		for _, term := range terms {
-			if !strings.Contains(strings.ToLower(resultProduct.Name), strings.ToLower(term)) {
-				resultValid = false
-				break
-			}
-		}
-		if resultValid {
-			validResults = append(validResults, result)
-		}
-
-	}
-
-	return validResults
-}
-
-func SortByPrice(results []Result) {
-	sort.Slice(results, func(i, j int) bool {
-		return results[i].Product.Price < results[j].Product.Price
-	})
+	return urls, nil
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {

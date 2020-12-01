@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 )
 
 type Product struct {
+	URL   string
 	Name  string
 	Price float64 // Yeah representing money as float is not an good idea in general
 }
@@ -28,6 +30,25 @@ func Get(link string) (Product, error) {
 		return Product{}, err
 	}
 	return parseProduct(responseBody, link)
+}
+
+// GetProducts gets all products details from the given URLs.
+// It is possible to have results and an error, which indicates
+// a partial result.
+func GetProducts(urls []string) ([]Product, error) {
+	var errs []error
+	var prods []Product
+
+	for _, url := range urls {
+		product, err := Get(url)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("url %q : %v", url, err))
+			continue
+		}
+		prods = append(prods, product)
+	}
+
+	return prods, toErr(errs)
 }
 
 func ParsePrice(doc *goquery.Document, link string) (float64, error) {
@@ -84,6 +105,34 @@ func ParsePrice(doc *goquery.Document, link string) (float64, error) {
 	return 0, toErr(errs)
 }
 
+func Filter(name string, prods []Product) []Product {
+	validProds := []Product{}
+	terms := strings.Fields(name)
+
+	for _, prod := range prods {
+		resultValid := true
+		for _, term := range terms {
+			if !strings.Contains(strings.ToLower(prod.Name), strings.ToLower(term)) {
+				resultValid = false
+				break
+			}
+		}
+		if resultValid {
+			validProds = append(validProds, prod)
+		}
+
+	}
+
+	return validProds
+}
+
+func SortByPrice(prods []Product) {
+	// FIXME: move to product package
+	sort.Slice(prods, func(i, j int) bool {
+		return prods[i].Price < prods[j].Price
+	})
+}
+
 func navigateAndParseBestBuyingOption(link string) (float64, error) {
 	linkUrl, err := url.Parse(link)
 	if err != nil {
@@ -117,7 +166,7 @@ func navigateAndParseBestBuyingOption(link string) (float64, error) {
 
 }
 
-func parseProduct(html io.Reader, link string) (Product, error) {
+func parseProduct(html io.Reader, url string) (Product, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
 
@@ -129,12 +178,13 @@ func parseProduct(html io.Reader, link string) (Product, error) {
 		return Product{}, errors.New("cant parse product name")
 	}
 
-	price, err := ParsePrice(doc, link)
+	price, err := ParsePrice(doc, url)
 	if err != nil {
 		return Product{}, fmt.Errorf("cant parse product price:\n%v", err)
 	}
 
 	return Product{
+		URL:   url,
 		Name:  name,
 		Price: price,
 	}, nil
