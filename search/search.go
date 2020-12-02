@@ -38,7 +38,7 @@ func New(cachePeriod time.Duration) *Searcher {
 	}
 }
 
-// Do performs a search with the given parameters and returns
+// Search performs a search with the given parameters and returns
 // a list of products. It can produce partial results so you
 // should check for the products even if an error is returned.
 func (s *Searcher) Search(domain, name string, minPrice, maxPrice uint) ([]product.Product, error) {
