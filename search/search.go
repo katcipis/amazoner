@@ -85,6 +85,9 @@ func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 	q.Add("k", name)
 	q.Add("low-price", itoa(minPrice))
 	q.Add("high-price", itoa(maxPrice))
+	q.Add("qid", "1606931590")
+	q.Add("rnid", "386442011")
+	q.Add("ref", "sr_nr_p_36_4")
 	req.URL.RawQuery = q.Encode()
 
 	res, err := client.Do(req)
