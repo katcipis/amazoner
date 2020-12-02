@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/katcipis/amazoner/product"
 	"github.com/katcipis/amazoner/search"
@@ -34,14 +35,8 @@ func main() {
 
 	fmt.Printf("search product %q min price %d max price %d\n\n", name, minPrice, maxPrice)
 
-	urls, err := search.Do(domain, name, minPrice, maxPrice)
-	if err != nil {
-		logerr("fatal error: cant find products URLs")
-		logerr(err.Error())
-		os.Exit(1)
-	}
-
-	products, err := product.GetProducts(urls)
+	searcher := search.New(time.Second)
+	products, err := searcher.Search(domain, name, minPrice, maxPrice)
 
 	if filter {
 		products = product.Filter(name, products)

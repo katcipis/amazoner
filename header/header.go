@@ -20,5 +20,5 @@ func Add(req *http.Request) {
 }
 
 func cookie() string {
-	return `session-id=138-1486552-1785917; session-id-time=2082787201l; i18n-prefs=USD; sp-cdn="L5Z9:DE"; skin=noskin; ubid-main=133-0026094-6185515; session-token=8s/a5BFqbCmg4b/agSrqTkTYamMzq7VZAdO4muCt7XR3TNZvSYkKJLBczicfYyeydY4xtd+AUJ+wxYuyI+YqmKVxh877jEuRlgBUQPFxl2l8qnvk+VXoLt5yOMyk7kUH8mTkelwiKU1xux3waXmaRi9GzqspHEk9QHSD8Ui/ddfEfSWu7tIx7LVxrflH3sp2vtvJmAnIBAaEwUGI+xEb0EDTDQnrGoDBtADU5sUFgL5/gZyPXOp7E5Z7AyceSlRf; csm-hit=tb:YTW86ZKZQDBF1H4MNT0W+s-YTW86ZKZQDBF1H4MNT0W|1606841550750&t:1606841550750&adb:adblk_no'`
+	return `session-id=138-1486552-1785917; session-id-time=2082787201l; i18n-prefs=USD; sp-cdn="L5Z9:DE"; skin=noskin; ubid-main=133-0026094-6185515; session-token=8s/a5BFqbCmg4b/agSrqTkTYamMzq7VZAdO4muCt7XR3TNZvSYkKJLBczicfYyeydY4xtd+AUJ+wxYuyI+YqmKVxh877jEuRlgBUQPFxl2l8qnvk+VXoLt5yOMyk7kUH8mTkelwiKU1xux3waXmaRi9GzqspHEk9QHSD8Ui/ddfEfSWu7tIx7LVxrflH3sp2vtvJmAnIBAaEwUGI+xEb0EDTDQnrGoDBtADU5sUFgL5/gZyPXOp7E5Z7AyceSlRf; csm-hit=tb:YTW86ZKZQDBF1H4MNT0W+s-YTW86ZKZQDBF1H4MNT0W|1606841550750&t:1606841550750&adb:adblk_no`
 }

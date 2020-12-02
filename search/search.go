@@ -13,13 +13,57 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/katcipis/amazoner/header"
+	"github.com/katcipis/amazoner/product"
 )
+
+// Searcher searches for products and provides the found products
+// with an internal cache to avoid getting products details too often.
+//
+// The searcher is NOT concurrency safe.
+type Searcher struct {
+	CachePeriod time.Duration
+	cache       map[string]cacheEntry
+}
 
 type Error string
 
 const (
 	ErrCaptcha Error = "captcha challenge"
 )
+
+func New(cachePeriod time.Duration) *Searcher {
+	return &Searcher{
+		CachePeriod: cachePeriod,
+		cache:       map[string]cacheEntry{},
+	}
+}
+
+// Search performs a search with the given parameters and returns
+// a list of products. It can produce partial results so you
+// should check for the products even if an error is returned.
+func (s *Searcher) Search(domain, name string, minPrice, maxPrice uint) ([]product.Product, error) {
+	s.cleanCache()
+	urls, err := Do(domain, name, minPrice, maxPrice)
+	if err != nil {
+		return nil, err
+	}
+
+	uncachedURLs := []string{}
+	products := []product.Product{}
+
+	for _, url := range urls {
+		r, ok := s.cache[url]
+		if ok {
+			products = append(products, r.product)
+			continue
+		}
+		uncachedURLs = append(uncachedURLs, url)
+	}
+
+	productsGot, err := product.GetProducts(uncachedURLs)
+	s.addCache(productsGot)
+	return append(products, productsGot...), err
+}
 
 // Do performs a search with the given parameters and returns
 // a list of products URLs.
@@ -66,6 +110,11 @@ func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 	}
 
 	return urls, nil
+}
+
+type cacheEntry struct {
+	product  product.Product
+	deadline time.Time
 }
 
 func parseResultsURLs(html io.Reader) ([]string, error) {
@@ -196,4 +245,21 @@ func isCaptchaChallenge(doc *goquery.Document) bool {
 
 func (e Error) Error() string {
 	return string(e)
+}
+
+func (s *Searcher) addCache(prods []product.Product) {
+	for _, prod := range prods {
+		s.cache[prod.URL] = cacheEntry{
+			product:  prod,
+			deadline: time.Now().Add(s.CachePeriod),
+		}
+	}
+}
+
+func (s *Searcher) cleanCache() {
+	for k, entry := range s.cache {
+		if time.Now().After(entry.deadline) {
+			delete(s.cache, k)
+		}
+	}
 }
