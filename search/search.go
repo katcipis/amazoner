@@ -3,18 +3,14 @@ package search
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/katcipis/amazoner/chromedriver"
-	// "github.com/katcipis/amazoner/debug"
-	"github.com/katcipis/amazoner/header"
 	"github.com/katcipis/amazoner/product"
+	"github.com/katcipis/amazoner/request"
 )
 
 // Searcher searches for products and provides the found products
@@ -24,6 +20,8 @@ import (
 type Searcher struct {
 	CachePeriod time.Duration
 	cache       map[string]cacheEntry
+	Requester   *request.Requester
+	Producter   *product.Producter
 }
 
 type Error string
@@ -33,9 +31,12 @@ const (
 )
 
 func New(cachePeriod time.Duration) *Searcher {
+	requester := request.NewRequester()
 	return &Searcher{
 		CachePeriod: cachePeriod,
 		cache:       map[string]cacheEntry{},
+		Requester:   requester,
+		Producter:   product.NewProducter(requester),
 	}
 }
 
@@ -43,8 +44,9 @@ func New(cachePeriod time.Duration) *Searcher {
 // a list of products. It can produce partial results so you
 // should check for the products even if an error is returned.
 func (s *Searcher) Search(domain, name string, minPrice, maxPrice uint) ([]product.Product, error) {
+	defer s.Requester.Close()
 	s.cleanCache()
-	urls, err := Do(domain, name, minPrice, maxPrice)
+	urls, err := s.Do(domain, name, minPrice, maxPrice)
 	if err != nil {
 		return nil, err
 	}
@@ -61,14 +63,14 @@ func (s *Searcher) Search(domain, name string, minPrice, maxPrice uint) ([]produ
 		uncachedURLs = append(uncachedURLs, url)
 	}
 
-	productsGot, err := product.GetProducts(uncachedURLs)
+	productsGot, err := s.Producter.GetProducts(uncachedURLs)
 	s.addCache(productsGot)
 	return append(products, productsGot...), err
 }
 
 // Do performs a search with the given parameters and returns
 // a list of products URLs.
-func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
+func (s *Searcher) Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 
 	entrypointURL := "https://" + domain
 
@@ -84,23 +86,12 @@ func Do(domain, name string, minPrice, maxPrice uint) ([]string, error) {
 	q.Add("high-price", itoa(maxPrice))
 	searchUrl.RawQuery = q.Encode()
 
-	html, err := getHtml(searchUrl.String())
+	resBody, err := s.Requester.Get(searchUrl.String())
 	if err != nil {
 		return nil, err
 	}
 
-	if isCaptchaChallenge(html) {
-		html, err = getHtmlChromedriver(searchUrl.String())
-		if err != nil {
-			return nil, err
-		}
-
-		if isCaptchaChallenge(html) {
-			return nil, fmt.Errorf("unable to find product URLs : %w", ErrCaptcha)
-		}
-	}
-
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	doc, err := goquery.NewDocumentFromReader(resBody)
 	if err != nil {
 		return nil, err
 	}
@@ -259,61 +250,4 @@ func (s *Searcher) cleanCache() {
 			delete(s.cache, k)
 		}
 	}
-}
-
-func getHtml(entrypointURL string) (string, error) {
-	client := &http.Client{Timeout: 30 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, entrypointURL, nil)
-	if err != nil {
-		return "", err
-	}
-
-	header.Add(req)
-
-	res, err := client.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-
-	// body, debugFile, err := debug.Save("search-result-http.html", res.Body)
-	// if err != nil {
-	// 	return "", fmt.Errorf("error trying to dump html response for debug:%v", err)
-	// }
-	// defer debugFile.Close()
-
-	// resBody, err := ioutil.ReadAll(body)
-	resBody, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse response body: %v", err)
-	}
-
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("main search query failed, unexpected status code %d, body:\n%s\n", res.StatusCode, resBody)
-	}
-
-	return string(resBody), nil
-}
-
-func getHtmlChromedriver(entrypointURL string) (string, error) {
-	browser, err := chromedriver.NewBrowser(entrypointURL, "")
-	if err != nil {
-		return "", err
-	}
-	defer browser.Close()
-
-	time.Sleep(2 * time.Second)
-
-	html, err := browser.Session.Source()
-	if err != nil {
-		return "", fmt.Errorf("failed to get html from chromedriver session: %v", err)
-	}
-
-	// debugFile, err := debug.SaveString("search-result-chrome.html", html)
-	// if err != nil {
-	// 	return "", fmt.Errorf("error trying to dump html response for debug:%v", err)
-	// }
-	// defer debugFile.Close()
-
-	return html, nil
 }

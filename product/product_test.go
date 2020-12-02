@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/katcipis/amazoner/product"
+	"github.com/katcipis/amazoner/request"
 )
 
 func TestProductGet(t *testing.T) {
@@ -12,14 +13,17 @@ func TestProductGet(t *testing.T) {
 	// But right now corners are being cut :-)
 	urls := []string{
 		"https://www.amazon.com/MSI-Twin-Frozr-Architecture-Overclocked-Graphics/dp/B07YXPVBWW",
-		"https://www.amazon.com/MSI-RTX-2070-Super-Architecture/dp/B0856BVRFL",
-		"https://www.amazon.com/MSI-Twin-Frozr-Architecture-Overclocked-Graphics/dp/B07YXPVBWW",
+		// "https://www.amazon.com/MSI-RTX-2070-Super-Architecture/dp/B0856BVRFL",
 	}
 
+	requester := request.NewRequester()
+	producter := product.NewProducter(requester)
 	for _, url := range urls {
 		t.Run(url, func(t *testing.T) {
-			p, err := product.Get(url)
+
+			p, err := producter.Get(url)
 			if err != nil {
+				requester.Close()
 				t.Fatal(err)
 			}
 			if p.Name == "" {
@@ -30,6 +34,7 @@ func TestProductGet(t *testing.T) {
 			}
 		})
 	}
+	requester.Close()
 }
 
 func TestFilter(t *testing.T) {

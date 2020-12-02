@@ -4,18 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/katcipis/amazoner/header"
+	"github.com/katcipis/amazoner/request"
 )
 
 type Product struct {
@@ -24,23 +21,31 @@ type Product struct {
 	Price float64 // Yeah representing money as float is not an good idea in general
 }
 
-func Get(link string) (Product, error) {
-	responseBody, err := doRequest(link)
+type Producter struct {
+	Requester *request.Requester
+}
+
+func NewProducter(requester *request.Requester) *Producter {
+	return &Producter{requester}
+}
+
+func (p *Producter) Get(link string) (Product, error) {
+	responseBody, err := p.Requester.Get(link)
 	if err != nil {
 		return Product{}, err
 	}
-	return parseProduct(responseBody, link)
+	return p.ParseProduct(responseBody, link)
 }
 
 // GetProducts gets all products details from the given URLs.
 // It is possible to have results and an error, which indicates
 // a partial result.
-func GetProducts(urls []string) ([]Product, error) {
+func (p *Producter) GetProducts(urls []string) ([]Product, error) {
 	var errs []error
 	var prods []Product
 
 	for _, url := range urls {
-		product, err := Get(url)
+		product, err := p.Get(url)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("url %q : %v", url, err))
 			continue
@@ -51,7 +56,7 @@ func GetProducts(urls []string) ([]Product, error) {
 	return prods, toErr(errs)
 }
 
-func ParsePrice(doc *goquery.Document, link string) (float64, error) {
+func (p *Producter) ParsePrice(doc *goquery.Document, link string) (float64, error) {
 	// FIXME: probably just exposing Get or a Parse would be better
 	// instead of these very specific parsing functions.
 
@@ -95,7 +100,7 @@ func ParsePrice(doc *goquery.Document, link string) (float64, error) {
 	}
 
 	// The easy scrapping parsing didn't work, time to bring the big guns
-	price, err := navigateAndParseBestBuyingOption(link)
+	price, err := p.navigateAndParseBestBuyingOption(link)
 	if err == nil {
 		return price, nil
 	}
@@ -133,7 +138,7 @@ func SortByPrice(prods []Product) {
 	})
 }
 
-func navigateAndParseBestBuyingOption(link string) (float64, error) {
+func (p *Producter) navigateAndParseBestBuyingOption(link string) (float64, error) {
 	linkUrl, err := url.Parse(link)
 	if err != nil {
 		return 0, err
@@ -143,7 +148,7 @@ func navigateAndParseBestBuyingOption(link string) (float64, error) {
 
 	entrypointURL := fmt.Sprintf("https://%s/gp/offer-listing/%s", linkUrl.Hostname(), productId)
 
-	responseBody, err := doRequest(entrypointURL)
+	responseBody, err := p.Requester.Get(entrypointURL)
 	if err != nil {
 		return 0, err
 	}
@@ -166,7 +171,7 @@ func navigateAndParseBestBuyingOption(link string) (float64, error) {
 
 }
 
-func parseProduct(html io.Reader, url string) (Product, error) {
+func (p *Producter) ParseProduct(html io.Reader, url string) (Product, error) {
 	doc, err := goquery.NewDocumentFromReader(html)
 	if err != nil {
 
@@ -178,7 +183,7 @@ func parseProduct(html io.Reader, url string) (Product, error) {
 		return Product{}, errors.New("cant parse product name")
 	}
 
-	price, err := ParsePrice(doc, url)
+	price, err := p.ParsePrice(doc, url)
 	if err != nil {
 		return Product{}, fmt.Errorf("cant parse product price:\n%v", err)
 	}
@@ -216,35 +221,6 @@ func parseMoney(s string) (float64, error) {
 	return v, nil
 }
 
-func doRequest(link string) (io.Reader, error) {
-	req, err := http.NewRequest(http.MethodGet, link, nil)
-	if err != nil {
-		return nil, err
-	}
-	header.Add(req)
-
-	c := &http.Client{Timeout: 30 * time.Second}
-
-	const throttleTime = time.Second
-
-	time.Sleep(throttleTime)
-
-	res, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	if res.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(res.Body)
-		res.Body.Close()
-		return nil, fmt.Errorf(
-			"url %q unexpected status %d; resp body:\n%s",
-			link,
-			res.StatusCode,
-			string(body),
-		)
-	}
-	return res.Body, nil
-}
 func toErr(errs []error) error {
 	// FIXME: Copied from search
 	if len(errs) == 0 {

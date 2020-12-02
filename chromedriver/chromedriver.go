@@ -5,46 +5,59 @@ import (
 )
 
 type Browser struct {
-	ChromeDriver *webdriver.ChromeDriver
-	Session      *webdriver.Session
+	ChromeDriver         *webdriver.ChromeDriver
+	Session              *webdriver.Session
+	DesiredCapabilities  webdriver.Capabilities
+	RequiredCapabilities webdriver.Capabilities
 }
 
-func NewBrowser(entrypointURL, userDataDir string) (*Browser, error) {
+func NewBrowser(userDataDir string) (*Browser, error) {
 	chromeDriver := webdriver.NewChromeDriver("chromedriver")
 	err := chromeDriver.Start()
 	if err != nil {
 		return nil, err
 	}
 
-	desired := webdriver.Capabilities{
+	desiredCapabilities := webdriver.Capabilities{
 		"Platform": "Linux",
 	}
 
-	// chromeArgs := []string{}
-	chromeArgs := []string{
-		"headless",
-	}
+	chromeArgs := []string{}
+	// chromeArgs := []string{
+	// 	"headless",
+	// }
 
 	if userDataDir != "" {
 		chromeArgs = append(chromeArgs, "user-data-dir="+userDataDir)
 	}
 
-	desired["goog:chromeOptions"] = map[string]interface{}{
+	desiredCapabilities["goog:chromeOptions"] = map[string]interface{}{
 		"args": chromeArgs,
 	}
 
-	required := webdriver.Capabilities{}
+	requiredCapabilities := webdriver.Capabilities{}
 
-	session, err := chromeDriver.NewSession(desired, required)
-	if err != nil {
-		return nil, err
-	}
-	err = session.Url(entrypointURL)
-	if err != nil {
-		return nil, err
+	return &Browser{
+		chromeDriver,
+		nil,
+		desiredCapabilities,
+		requiredCapabilities,
+	}, nil
+}
+
+func (b *Browser) Url(entrypointURL string) (err error) {
+	if b.Session == nil {
+		b.Session, err = b.ChromeDriver.NewSession(b.DesiredCapabilities, b.RequiredCapabilities)
+		if err != nil {
+			return err
+		}
 	}
 
-	return &Browser{chromeDriver, session}, nil
+	if err = b.Session.Url(entrypointURL); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (b *Browser) Close() {

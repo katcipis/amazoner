@@ -3,8 +3,6 @@ package buy
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -15,7 +13,10 @@ import (
 	"github.com/katcipis/amazoner/chromedriver"
 	"github.com/katcipis/amazoner/parser"
 	"github.com/katcipis/amazoner/product"
+	"github.com/katcipis/amazoner/request"
 )
+
+const throttleTime = time.Second
 
 type Purchase struct {
 	Stock    string
@@ -23,33 +24,28 @@ type Purchase struct {
 	Delivery string
 }
 
-const throttleTime = time.Second
+type Buyer struct {
+	Requester *request.Requester
+	Producter *product.Producter
+}
+
+func NewBuyer() *Buyer {
+	requester := request.NewRequester()
+	return &Buyer{
+		Requester: requester,
+		Producter: product.NewProducter(requester),
+	}
+}
 
 // Do performs a buy with the given parameters.
-func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun bool) (*Purchase, error) {
+func (b *Buyer) Do(link string, maxPrice uint, email, password, userDataDir string, dryRun bool) (*Purchase, error) {
 
-	client := &http.Client{Timeout: 30 * time.Second}
-
-	// FIXME: We have some get/product parsing logic here that could be
-	// placed on the product package.
-	req, err := http.NewRequest(http.MethodGet, link, nil)
+	resBody, err := b.Requester.Get(link)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		// Lazy ignoring the error here
-		resBody, _ := ioutil.ReadAll(res.Body)
-		return nil, fmt.Errorf("buying request failed, unexpected status code %d, body:\n%s\n", res.StatusCode, resBody)
-	}
-
-	doc, err := goquery.NewDocumentFromReader(res.Body)
+	doc, err := goquery.NewDocumentFromReader(resBody)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +59,7 @@ func Do(link string, maxPrice uint, email, password, userDataDir string, dryRun 
 		return nil, fmt.Errorf("no stock available: %s", availability)
 	}
 
-	price, err := product.ParsePrice(doc, link)
+	price, err := b.Producter.ParsePrice(doc, link)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing the price of product with availability '%s'\n%v", availability, err)
 	}
@@ -104,11 +100,15 @@ func checkAvailability(availability string) bool {
 
 func makePurchase(link, email, password, userDataDir, availability string, dryRun bool) error {
 	// Start Chromedriver
-	browser, err := chromedriver.NewBrowser(link, userDataDir)
+	browser, err := chromedriver.NewBrowser(userDataDir)
 	if err != nil {
 		return err
 	}
 	defer browser.Close()
+
+	if err = browser.Url(link); err != nil {
+		return err
+	}
 
 	time.Sleep(throttleTime)
 
